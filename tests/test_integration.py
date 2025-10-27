@@ -207,18 +207,137 @@ def test_contract_directory_structure():
     print("✅ Directory structure validation successful")
 
 
+# ============================================================================
+# Batch 2: Script Integration Tests
+# ============================================================================
+
+
+def test_script_integration_process():
+    """Test process.py script executes end-to-end pipeline"""
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+        f.write("Test document for processing script")
+        test_file = f.name
+
+    with tempfile.TemporaryDirectory() as output_dir:
+        # Run process.py script
+        result = subprocess.run(
+            ["python3", "scripts/process.py", test_file, "--output-dir", output_dir],
+            capture_output=True,
+            text=True
+        )
+
+        # Should succeed (exit code 0)
+        assert result.returncode == 0, f"Process failed: {result.stderr}"
+
+        # Should show processing stages
+        assert "validation" in result.stdout.lower() or "processing" in result.stdout.lower()
+
+    # Clean up
+    Path(test_file).unlink()
+
+    print("✅ process.py script integration successful")
+
+
+def test_script_integration_health_check():
+    """Test health_check.py script validates system health"""
+    # Run health_check.py script
+    result = subprocess.run(
+        ["python3", "scripts/health_check.py"],
+        capture_output=True,
+        text=True
+    )
+
+    # Should succeed (exit code 0)
+    assert result.returncode == 0, f"Health check failed: {result.stderr}"
+
+    # Should check multiple categories
+    assert "directories" in result.stdout.lower() or "Directories" in result.stdout
+    assert "modules" in result.stdout.lower() or "Modules" in result.stdout
+
+    print("✅ health_check.py script integration successful")
+
+
+def test_script_integration_cache_stats():
+    """Test cache_stats.py script displays cache metrics"""
+    # Run cache_stats.py script
+    result = subprocess.run(
+        ["python3", "scripts/cache_stats.py"],
+        capture_output=True,
+        text=True
+    )
+
+    # Should succeed (exit code 0)
+    assert result.returncode == 0, f"Cache stats failed: {result.stderr}"
+
+    # Should show cache statistics
+    assert "Cache" in result.stdout or "entries" in result.stdout.lower()
+
+    print("✅ cache_stats.py script integration successful")
+
+
+def test_script_integration_security_check():
+    """Test security_check.py script validates security"""
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+        f.write("Clean test document without any security issues")
+        test_file = f.name
+
+    # Run security_check.py script
+    result = subprocess.run(
+        ["python3", "scripts/security_check.py", test_file],
+        capture_output=True,
+        text=True
+    )
+
+    # Should succeed (exit code 0)
+    assert result.returncode == 0, f"Security check failed: {result.stderr}"
+
+    # Should show security validation
+    assert "Security" in result.stdout or "safe" in result.stdout.lower() or "passed" in result.stdout.lower()
+
+    # Clean up
+    Path(test_file).unlink()
+
+    print("✅ security_check.py script integration successful")
+
+
+def test_script_integration_model_router():
+    """Test model_router.py script routes tasks correctly"""
+    # Run model_router.py script with task description
+    result = subprocess.run(
+        ["python3", "scripts/model_router.py", "Extract structured data from document"],
+        capture_output=True,
+        text=True
+    )
+
+    # Should succeed (exit code 0)
+    assert result.returncode == 0, f"Model router failed: {result.stderr}"
+
+    # Should recommend a model
+    assert "model" in result.stdout.lower() or "gpt" in result.stdout.lower()
+
+    print("✅ model_router.py script integration successful")
+
+
 def run_all_integration_tests():
     """Run all integration tests"""
     tests = [
+        # Batch 1: Critical workflows & contracts
         ("workflow_validate_process_publish", test_workflow_validate_process_publish),
         ("script_integration_validate", test_script_integration_validate),
         ("script_integration_queue_status", test_script_integration_queue_status),
         ("contract_version_compliance", test_contract_version_compliance),
         ("contract_directory_structure", test_contract_directory_structure),
+
+        # Batch 2: Script integration
+        ("script_integration_process", test_script_integration_process),
+        ("script_integration_health_check", test_script_integration_health_check),
+        ("script_integration_cache_stats", test_script_integration_cache_stats),
+        ("script_integration_security_check", test_script_integration_security_check),
+        ("script_integration_model_router", test_script_integration_model_router),
     ]
 
     print("=" * 70)
-    print("Gate 5: Integration & Contract Tests - Batch 1")
+    print("Gate 5: Integration & Contract Tests - Batches 1-2")
     print("=" * 70)
     print()
 
@@ -237,7 +356,7 @@ def run_all_integration_tests():
 
     print()
     print("=" * 70)
-    print(f"Batch 1 Results: {passed} passed, {failed} failed (out of {len(tests)} total)")
+    print(f"Results: {passed} passed, {failed} failed (out of {len(tests)} total)")
     print("=" * 70)
 
     if errors:
