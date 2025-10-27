@@ -88,7 +88,7 @@ def test_gate_2a_ingestion_batch_processor():
 
 def test_gate_2a_processing_llm_provider():
     """Test llm_provider.py: LLM provider factory"""
-    from processing.llm_provider import LLMProviderFactory, LLMProvider
+    from processing.llm_provider import LLMProviderFactory, LLMProvider, LLMRequest
 
     # Create OpenAI provider (stubbed)
     provider = LLMProviderFactory.create(
@@ -98,12 +98,14 @@ def test_gate_2a_processing_llm_provider():
     )
 
     assert provider is not None
-    # Provider stores config, not direct model attribute
-    assert provider.config['model'] == "gpt-4"
+    # Provider has direct model attribute per API spec
+    assert provider.model == "gpt-4"
 
-    # Test stubbed completion
-    response = provider.call("Test prompt")
+    # Test stubbed completion with LLMRequest
+    request = LLMRequest(prompt="Test prompt", model="gpt-4")
+    response = provider.call(request)
     assert response is not None
+    assert response.model == "gpt-4"
 
     print("✅ llm_provider.py: Provider instantiation successful")
 

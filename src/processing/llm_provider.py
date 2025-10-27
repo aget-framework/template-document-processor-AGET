@@ -119,6 +119,16 @@ class OpenAIProvider(BaseLLMProvider):
     should be added when deploying to production.
     """
 
+    def __init__(self, api_key: Optional[str] = None, **kwargs):
+        """Initialize OpenAI provider
+
+        Args:
+            api_key: OpenAI API key (if None, read from environment)
+            **kwargs: Additional configuration (model, etc.)
+        """
+        super().__init__(api_key, **kwargs)
+        self.model = kwargs.get('model', 'gpt-4o')  # Direct model attribute per API spec
+
     def call(self, request: LLMRequest) -> LLMResponse:
         """Call OpenAI API (stubbed)
 
@@ -174,6 +184,16 @@ class AnthropicProvider(BaseLLMProvider):
     should be added when deploying to production.
     """
 
+    def __init__(self, api_key: Optional[str] = None, **kwargs):
+        """Initialize Anthropic provider
+
+        Args:
+            api_key: Anthropic API key (if None, read from environment)
+            **kwargs: Additional configuration (model, etc.)
+        """
+        super().__init__(api_key, **kwargs)
+        self.model = kwargs.get('model', 'claude-3-5-sonnet-20241022')  # Direct model attribute per API spec
+
     def call(self, request: LLMRequest) -> LLMResponse:
         """Call Anthropic API (stubbed)
 
@@ -227,6 +247,16 @@ class GoogleProvider(BaseLLMProvider):
     Design Decision: Stub implementation - actual Google SDK calls
     should be added when deploying to production.
     """
+
+    def __init__(self, api_key: Optional[str] = None, **kwargs):
+        """Initialize Google provider
+
+        Args:
+            api_key: Google API key (if None, read from environment)
+            **kwargs: Additional configuration (model, etc.)
+        """
+        super().__init__(api_key, **kwargs)
+        self.model = kwargs.get('model', 'gemini-2.5-pro')  # Direct model attribute per API spec
 
     def call(self, request: LLMRequest) -> LLMResponse:
         """Call Google Gemini API (stubbed)
