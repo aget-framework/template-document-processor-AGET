@@ -45,21 +45,27 @@ Update these files:
 }
 ```
 
-**`config/document_type.yaml`**:
+**`configs/validation_rules.yaml`**:
 ```yaml
-document_type: "pdf"  # or "docx", "markdown", "wikitext"
-file_extensions: [".pdf"]
-size_limits:
-  max_pages: 100
-  max_bytes: 10485760
+max_file_size_mb: 10
+allowed_extensions: [".pdf", ".docx", ".txt", ".md"]
+required_validations:
+  - file_size
+  - file_format
+  - content_safety
 ```
 
-**`config/llm_providers.yaml`**:
+**`configs/llm_providers.yaml`**:
 ```yaml
-primary_provider: "openai"
-fallback_providers: ["anthropic", "google"]
+providers:
+  openai:
+    api_key_env: OPENAI_API_KEY
+    enabled: true
+  anthropic:
+    api_key_env: ANTHROPIC_API_KEY
+    enabled: false
 budget:
-  monthly_limit: 300
+  monthly_limit_usd: 300.0
 ```
 
 ### 3. Update Mission
@@ -92,55 +98,45 @@ git push -u origin main
 - **`src/pipeline/`** - Task decomposition, orchestration, metrics
 - **`src/wikitext/`** - Domain-specific support (extensible for other formats)
 
-### Configuration Files
+### Configuration Files (9 YAMLs)
 
-- **`config/document_type.yaml`** - Document format configuration
-- **`config/external_system.yaml`** - External API integration
-- **`config/validation_rules.yaml`** - Validation criteria
-- **`config/llm_providers.yaml`** - LLM provider configuration
-- **`config/approval_gates.yaml`** - Authorization settings
-- **`config/model_routing.yaml`** - Model selection strategy
-- **`config/security_policy.yaml`** - Security configuration
-- **`config/caching.yaml`** - Cache settings
-- **`config/metrics.yaml`** - Metrics and alerts
-- **`config/orchestration.yaml`** - Task decomposition
+- **`configs/validation_rules.yaml`** - Document validation criteria
+- **`configs/llm_providers.yaml`** - LLM provider configuration
+- **`configs/model_routing.yaml`** - Model selection strategy
+- **`configs/models.yaml`** - Model definitions and capabilities
+- **`configs/security_policy.yaml`** - Security and content filtering
+- **`configs/processing_limits.yaml`** - Resource limits (tokens, time, cost)
+- **`configs/caching.yaml`** - Cache settings and TTL
+- **`configs/metrics.yaml`** - Metrics collection and alerts
+- **`configs/orchestration.yaml`** - Task decomposition and pipeline
 
 ## Customization Points
 
-### 1. Document Type
+### 1. Document Validation
 
-Customize `config/document_type.yaml` for your document format:
+Customize `configs/validation_rules.yaml` for your document format:
 - File extensions
 - Size limits
-- Format-specific validation
+- Format-specific validation rules
 
-### 2. External System
+### 2. LLM Providers
 
-Configure `config/external_system.yaml` for integration:
-- MediaWiki API
-- GitHub API
-- S3 bucket
-- Filesystem
-- Custom APIs
-
-### 3. LLM Providers
-
-Set up providers in `config/llm_providers.yaml`:
+Set up providers in `configs/llm_providers.yaml`:
 - API keys (use environment variables)
 - Model selection (cost vs quality)
 - Fallback chain
 - Budget limits
 
-### 4. Security
+### 3. Security
 
-Configure security in `config/security_policy.yaml`:
+Configure security in `configs/security_policy.yaml`:
 - Input sanitization rules
 - Content filtering (PII detection)
 - Resource limits (tokens, time, cost)
 
-### 5. Metrics
+### 4. Metrics
 
-Define metrics in `config/metrics.yaml`:
+Define metrics in `configs/metrics.yaml`:
 - Accuracy tracking
 - Latency monitoring (p50/p95/p99)
 - Cost tracking
@@ -164,30 +160,39 @@ Each protocol includes bash commands and code examples.
 
 ## Scripts
 
-The template provides 15 operational scripts in `scripts/`:
+The template provides 17 operational tools (15 scripts + 2 helper tools):
 
 **Session Management**:
 - `session_protocol.py` - Wake up/wind down/sign off
 - `queue_status.py` - Queue management CLI
 - `health_check.py` - System diagnostics
 
-**Operations**:
-- `validate.py` - Pre/post validation
-- `process.py` - Document processing CLI
-- `audit.py` - Audit trail viewer
-- `rollback.py` - Rollback operations
+**Core Operations** (`scripts/`):
+- `validate.py` - Document validation CLI
+- `process.py` - End-to-end processing pipeline
+- `queue_status.py` - Queue status and management
+- `rollback.py` - Version rollback operations
+- `cache_setup.py` - Cache initialization
+- `metrics.py` - Metrics display and export
+
+**Supporting Operations** (`scripts/`):
+- `health_check.py` - System health diagnostics
 - `security_check.py` - Security validation
-- `model_router.py` - Model routing CLI
-- `cache_setup.py` - Cache configuration
+- `audit.py` - Audit trail viewer
+- `model_router.py` - Model routing recommendations
 - `cache_stats.py` - Cache statistics
-- `cache_clear.py` - Cache management
-- `checkpoint.py` - Checkpoint management
-- `metrics.py` - Metrics CLI
-- `task_planner.py` - Task decomposition planner
+- `cache_clear.py` - Cache clearing
+
+**Specialized Tools** (`scripts/` and `.aget/tools/`):
+- `session_protocol.py` - Session lifecycle (wake/wind-down/sign-off)
+- `checkpoint.py` - Checkpoint save/load/list
+- `task_planner.py` - Task decomposition planning
+- `.aget/tools/analyze_agent_fit.py` - Use case fit analysis
+- `.aget/tools/instantiate_template.py` - Template instantiation helper
 
 ## Testing
 
-Template includes 30+ contract tests:
+Template includes 30 contract tests (100% passing):
 
 ```bash
 # Run all tests
@@ -198,31 +203,53 @@ python3 -m pytest tests/test_processing.py -v
 ```
 
 Test coverage:
-- Identity validation
-- Structure validation
-- Configuration validation
-- Protocol validation
-- Module functionality
-- Script functionality
-- Integration workflows
+- **Smoke tests** (20 tests): All 20 modules tested
+- **Integration tests** (10 tests): End-to-end workflows, script integration, contract validation
 
-## Examples
+```bash
+# Run smoke tests only
+python3 tests/smoke_test.py
 
-See `examples/` directory for complete instantiation examples:
+# Run integration tests only
+python3 tests/test_integration.py
+```
 
-- **`examples/pdf_processor/`** - PDF extraction agent
-- **`examples/markdown_enhancer/`** - Markdown enhancement agent
+## Helper Tools
+
+Two helper tools are provided for template users:
+
+**Analyze Agent Fit**:
+```bash
+# Check if use case fits this template
+python3 .aget/tools/analyze_agent_fit.py "Process legal contracts and extract structured data"
+
+# Interactive mode
+python3 .aget/tools/analyze_agent_fit.py --interactive
+```
+
+**Instantiate Template**:
+```bash
+# Create new agent from template
+python3 .aget/tools/instantiate_template.py invoice-processor ~/github/invoice-processor-AGET
+
+# Verify instantiation
+python3 .aget/tools/instantiate_template.py --check ~/github/invoice-processor-AGET
+```
 
 ## Version History
 
 **v2.7.0** (2025-10-26)
 - Initial template release
-- Based on L208 document processing pattern
-- 18 source modules
-- 8 configuration files
-- 9 operational protocols
-- 30+ contract tests
-- Wikitext support included
+- Based on L208 document processing pattern analysis
+- **20 source modules** (Gate 2A: 8, Gate 2B: 7, Gate 2C: 5)
+- **9 configuration files** (YAML-based)
+- **9 operational protocols** (tested and validated)
+- **3 formal specifications** (168 EARS requirements)
+- **17 operational tools** (15 scripts + 2 helper tools)
+- **30 contract tests** (20 smoke + 10 integration, 100% passing)
+- Multi-provider LLM support (OpenAI, Anthropic, Google)
+- Security protocols (input sanitization, content filtering, resource limits)
+- Wikitext support (extensible to other formats)
 
 ## Support
 
