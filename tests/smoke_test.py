@@ -51,13 +51,14 @@ def test_gate_2a_ingestion_validator():
     """Test validator.py: Document validation"""
     from ingestion.validator import DocumentValidator, FileSizeValidator, FileFormatValidator
 
-    validator = DocumentValidator()
+    # Create validator with empty rules list (no defaults)
+    validator = DocumentValidator(rules=[])
     # Correct API: max_bytes (not max_size_mb)
     validator.add_rule(FileSizeValidator(max_bytes=10 * 1024 * 1024))  # 10 MB
     # Correct API: allowed_extensions (not allowed_formats)
     validator.add_rule(FileFormatValidator(allowed_extensions=['.pdf', '.docx']))
 
-    # Validator instantiates successfully
+    # Validator instantiates successfully with 2 rules
     assert len(validator.rules) == 2
 
     print("✅ validator.py: Validator creation successful")
