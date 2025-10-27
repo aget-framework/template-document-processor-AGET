@@ -179,10 +179,11 @@ def test_gate_2a_processing_cache_manager():
         key = cache.get_cache_key("prompt", "model")
         assert len(key) == 64  # SHA-256 hex digest
 
-        # Test cache operations (correct API: prompt, model, response required)
+        # Test cache operations (parameter-based API: pass prompt, model directly)
         cache.set("prompt text", "gpt-4", "response text")
-        cached = cache.get(cache.get_cache_key("prompt text", "gpt-4"))
+        cached = cache.get("prompt text", "gpt-4")  # Parameter-based, not cache_key-based
         assert cached is not None
+        assert cached == "response text"
 
         # Test checkpoint manager
         checkpoint_mgr = CheckpointManager(checkpoint_dir=tmpdir)
