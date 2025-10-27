@@ -372,7 +372,7 @@ class ContentFilterPipeline:
                 # Redact critical content
                 start = match.position
                 end = start + len(match.matched_text)
-                redacted_text = redacted_text[:start] + "[REDACTED]" + redacted_text[end:]
+                redacted_text = redacted_text[:start] + f"[REDACTED:{match.filter_name}]" + redacted_text[end:]
 
         return redacted_text, matches
 

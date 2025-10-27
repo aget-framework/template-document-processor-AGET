@@ -273,13 +273,16 @@ def test_gate_2b_security_input_sanitizer():
     assert "<USER_CONTENT>" in wrapped
     assert "</USER_CONTENT>" in wrapped
 
-    # Test prompt builder (uses template methods, not add_system)
+    # Test prompt builder (requires both document and extraction_schema)
     builder = PromptBuilder()
-    prompt = builder.build_extraction_prompt("Extract data from this document")
+    schema = {"name": "string", "age": "number"}  # Schema must be dict per API spec
+    prompt = builder.build_extraction_prompt(
+        document="Extract data from this document",
+        extraction_schema=schema
+    )
 
     assert prompt is not None
-
-    print("✅ input_sanitizer.py: Sanitization successful")
+    print("✅ input_sanitizer.py: Prompt injection prevention successful")
 
 
 def test_gate_2b_security_content_filter():

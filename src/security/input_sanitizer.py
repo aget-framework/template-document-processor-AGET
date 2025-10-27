@@ -192,55 +192,64 @@ class PromptBuilder:
 
     def build_extraction_prompt(
         self,
-        document_text: str,
-        extraction_schema: str
+        document: str,  # Renamed from document_text for API consistency
+        extraction_schema: dict  # Changed from str to dict per API spec
     ) -> str:
         """Build prompt for data extraction
 
         Args:
-            document_text: Document to extract from
-            extraction_schema: Schema describing what to extract
+            document: Document to extract from
+            extraction_schema: Schema dict describing what to extract
 
         Returns:
             Safe prompt for extraction
         """
+        # Convert schema dict to string for prompt
+        import json
+        schema_str = json.dumps(extraction_schema, indent=2)
+
         instruction = f"""Extract information according to this schema:
-{extraction_schema}
+{schema_str}
 
 Respond ONLY with the extracted data in the specified format.
 Do not include explanations or additional commentary."""
 
-        return self.sanitizer.build_safe_prompt(instruction, document_text)
+        return self.sanitizer.build_safe_prompt(instruction, document)
 
     def build_summarization_prompt(
         self,
-        document_text: str,
-        max_summary_length: int = 500
+        document: str,  # Renamed from document_text for API consistency
+        max_length: int = None  # Renamed from max_summary_length, made optional per API spec
     ) -> str:
         """Build prompt for document summarization
 
         Args:
-            document_text: Document to summarize
-            max_summary_length: Maximum summary length in words
+            document: Document to summarize
+            max_length: Maximum summary length in words (optional)
 
         Returns:
             Safe prompt for summarization
         """
-        instruction = f"""Summarize the following document in {max_summary_length} words or less.
+        if max_length:
+            instruction = f"""Summarize the following document in {max_length} words or less.
+Focus on the key points and main ideas.
+Do not include opinions or interpretations not present in the original text."""
+        else:
+            instruction = """Summarize the following document.
 Focus on the key points and main ideas.
 Do not include opinions or interpretations not present in the original text."""
 
-        return self.sanitizer.build_safe_prompt(instruction, document_text)
+        return self.sanitizer.build_safe_prompt(instruction, document)
 
     def build_classification_prompt(
         self,
-        document_text: str,
-        categories: list
+        document: str,  # Renamed from document_text for API consistency
+        categories: list  # List[str] per API spec
     ) -> str:
         """Build prompt for document classification
 
         Args:
-            document_text: Document to classify
+            document: Document to classify
             categories: List of possible categories
 
         Returns:
@@ -253,4 +262,4 @@ Do not include opinions or interpretations not present in the original text."""
 
 Respond with ONLY the category name, nothing else."""
 
-        return self.sanitizer.build_safe_prompt(instruction, document_text)
+        return self.sanitizer.build_safe_prompt(instruction, document)
