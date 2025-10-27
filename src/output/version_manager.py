@@ -22,6 +22,7 @@ class DocumentVersion:
     """Represents a version of a processed document"""
     version_id: str
     document_id: str
+    number: int  # Sequential version number (1, 2, 3, ...) per API spec
     content: Any
     timestamp: float
     processing_metadata: Dict
@@ -92,10 +93,15 @@ class VersionManager:
         # Calculate content hash
         content_hash = self._hash_content(content)
 
+        # Calculate sequential version number (1, 2, 3, ...)
+        existing_versions = self._index.get(document_id, [])
+        version_number = len(existing_versions) + 1
+
         # Create version object
         version = DocumentVersion(
             version_id=version_id,
             document_id=document_id,
+            number=version_number,
             content=content,
             timestamp=time.time(),
             processing_metadata=processing_metadata,

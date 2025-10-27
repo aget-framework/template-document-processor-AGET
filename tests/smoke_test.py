@@ -236,7 +236,7 @@ def test_gate_2b_output_version_manager():
 
 def test_gate_2b_output_rollback_manager():
     """Test rollback_manager.py: Rollback operations"""
-    from output.rollback_manager import RollbackManager
+    from output.rollback_manager import RollbackManager, RollbackReason
     from output.version_manager import VersionManager
     from output.publisher import Publisher
 
@@ -250,8 +250,13 @@ def test_gate_2b_output_rollback_manager():
         v1 = vm.create_version("doc1", "content v1", {}, "v1")
         v2 = vm.create_version("doc1", "content v2", {}, "v2")
 
-        # Test rollback
-        rollback = rm.rollback_document("doc1", v1.version_id, "Testing rollback")
+        # Test rollback (dry_run=True to avoid re-publishing in test)
+        rollback = rm.rollback_document(
+            "doc1",
+            target_version_id=v1.version_id,
+            reason=RollbackReason.USER_REQUESTED,  # Use enum, not string
+            dry_run=True
+        )
         assert rollback.success
 
         print("✅ rollback_manager.py: Rollback successful")
