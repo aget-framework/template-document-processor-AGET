@@ -41,14 +41,14 @@ class BatchProgress:
     status: BatchStatus
     total: int
     processed: int
-    succeeded: int
+    completed: int  # Renamed from 'succeeded' for API consistency
     failed: int
     start_time: float
     end_time: Optional[float] = None
 
     @property
-    def percent_complete(self) -> float:
-        """Calculate completion percentage"""
+    def progress_percent(self) -> float:
+        """Calculate completion percentage (renamed from percent_complete for API consistency)"""
         if self.total == 0:
             return 100.0
         return (self.processed / self.total) * 100
@@ -125,7 +125,7 @@ class BatchProcessor:
             status=BatchStatus.RUNNING,
             total=len(documents),
             processed=0,
-            succeeded=0,
+            completed=0,
             failed=0,
             start_time=time.time()
         )
@@ -145,7 +145,7 @@ class BatchProcessor:
                 # Update progress
                 progress.processed += 1
                 if result.success:
-                    progress.succeeded += 1
+                    progress.completed += 1
                 else:
                     progress.failed += 1
 

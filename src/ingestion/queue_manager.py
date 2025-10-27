@@ -32,6 +32,7 @@ class DocumentQueueItem:
     size_bytes: int
     added_timestamp: float
     processed_timestamp: Optional[float] = None
+    result: Optional[Dict] = None  # Processing result when completed
     error_message: Optional[str] = None
     metadata: Optional[Dict] = None
 
@@ -120,11 +121,16 @@ class QueueManager:
         self._save_queue()
         return item
 
-    def mark_processed(self, document_id: str) -> DocumentQueueItem:
+    def mark_processed(
+        self,
+        document_id: str,
+        result: Optional[Dict] = None
+    ) -> DocumentQueueItem:
         """Mark document as successfully processed
 
         Args:
             document_id: Document to mark as processed
+            result: Optional processing result data
 
         Returns:
             Updated queue item
@@ -137,6 +143,7 @@ class QueueManager:
         item = self.items[document_id]
         item.state = QueueState.PROCESSED
         item.processed_timestamp = time.time()
+        item.result = result
         self._save_queue()
         return item
 
