@@ -66,6 +66,9 @@ credentials.json
 workspace/
 data/local/
 .aget/checkpoints/*.json
+.aget/output/
+.aget/versions/
+.aget/queue_state.json
 
 # Backup files
 *.bak
