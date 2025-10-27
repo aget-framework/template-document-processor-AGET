@@ -29,8 +29,8 @@ class ErrorType(Enum):
 @dataclass
 class RetryConfig:
     """Configuration for retry behavior"""
-    max_retries: int = 3
-    initial_delay: float = 1.0         # Initial delay in seconds
+    max_attempts: int = 3              # Renamed from 'max_retries' for API consistency
+    base_delay: float = 1.0            # Renamed from 'initial_delay' for API consistency
     max_delay: float = 60.0            # Maximum delay in seconds
     exponential_base: float = 2.0      # Multiplier for exponential backoff
     jitter: bool = True                # Add randomness to prevent thundering herd
@@ -43,7 +43,8 @@ class RetryConfig:
                 ErrorType.RATE_LIMIT,
                 ErrorType.TIMEOUT,
                 ErrorType.SERVER_ERROR,
-                ErrorType.NETWORK_ERROR
+                ErrorType.NETWORK_ERROR,
+                ErrorType.UNKNOWN  # Default to retryable for safety
             ]
 
 
@@ -99,7 +100,7 @@ class RetryHandler:
         total_delay = 0.0
         last_error = None
 
-        while attempts <= self.config.max_retries:
+        while attempts <= self.config.max_attempts:
             try:
                 # Attempt execution
                 result = func()
@@ -128,7 +129,7 @@ class RetryHandler:
                     )
 
                 # Check if max retries exceeded
-                if attempts > self.config.max_retries:
+                if attempts > self.config.max_attempts:
                     break
 
                 # Calculate delay
@@ -157,8 +158,8 @@ class RetryHandler:
         Returns:
             Delay in seconds
         """
-        # Exponential backoff: delay = initial * (base ^ (attempt - 1))
-        delay = self.config.initial_delay * (self.config.exponential_base ** (attempt - 1))
+        # Exponential backoff: delay = base * (exponential_base ^ (attempt - 1))
+        delay = self.config.base_delay * (self.config.exponential_base ** (attempt - 1))
 
         # Cap at max delay
         delay = min(delay, self.config.max_delay)
@@ -214,14 +215,14 @@ class RetryDecorator:
             return api.request()
     """
 
-    def __init__(self, max_retries: int = 3, initial_delay: float = 1.0):
+    def __init__(self, max_attempts: int = 3, base_delay: float = 1.0):
         """Initialize retry decorator
 
         Args:
-            max_retries: Maximum number of retries
-            initial_delay: Initial delay in seconds
+            max_attempts: Maximum number of retry attempts
+            base_delay: Base delay in seconds for exponential backoff
         """
-        self.config = RetryConfig(max_retries=max_retries, initial_delay=initial_delay)
+        self.config = RetryConfig(max_attempts=max_attempts, base_delay=base_delay)
         self.handler = RetryHandler(self.config)
 
     def __call__(self, func: Callable) -> Callable:
@@ -250,16 +251,16 @@ class RetryDecorator:
 
 def with_retry(
     func: Callable,
-    max_retries: int = 3,
-    initial_delay: float = 1.0,
+    max_attempts: int = 3,
+    base_delay: float = 1.0,
     error_classifier: Optional[Callable[[Exception], ErrorType]] = None
 ) -> Any:
     """Helper function to retry a function call
 
     Args:
         func: Function to execute
-        max_retries: Maximum number of retries
-        initial_delay: Initial delay in seconds
+        max_attempts: Maximum number of retry attempts
+        base_delay: Base delay in seconds for exponential backoff
         error_classifier: Function to classify exceptions
 
     Returns:
@@ -269,9 +270,9 @@ def with_retry(
         Exception: If all retries fail
 
     Example:
-        result = with_retry(lambda: api_call(), max_retries=5)
+        result = with_retry(lambda: api_call(), max_attempts=5)
     """
-    config = RetryConfig(max_retries=max_retries, initial_delay=initial_delay)
+    config = RetryConfig(max_attempts=max_attempts, base_delay=base_delay)
     handler = RetryHandler(config)
     result = handler.retry(func, error_classifier)
 
