@@ -186,7 +186,9 @@ Define the expected data structure:
 from processing.schema_validator import SchemaValidator, Schema, FieldType
 
 # Create schema
-schema = Schema(
+schema = Schema()  # Create empty schema
+    # Note: name and description would be in metadata, not Schema constructor
+    # schema = Schema(
     name="invoice_schema",
     description="Invoice data extraction schema"
 )
@@ -487,7 +489,9 @@ def validate_pipeline(document_path: str, extracted_data: dict, schema: Schema) 
 
 if __name__ == "__main__":
     # Test data
-    schema = Schema("test_schema")
+    schema = Schema()  # Create empty schema
+    # Note: name and description would be in metadata, not Schema constructor
+    # schema = Schema()  # Create empty schema
     schema.add_field("name", FieldType.STRING, required=True)
 
     data = {"name": "Test"}

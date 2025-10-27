@@ -188,7 +188,7 @@ Define what data to extract from the document:
 
 ```python
 # Define extraction schema
-schema = Schema(name="invoice_schema", description="Extract invoice data")
+schema = Schema()  # Create empty schema
 schema.add_field("invoice_number", FieldType.STRING, required=True)
 schema.add_field("date", FieldType.STRING, required=True)
 schema.add_field("total_amount", FieldType.NUMBER, required=True)
@@ -373,7 +373,7 @@ def process_document(document_path: str):
         sanitized_document, _ = content_filter.scan_and_redact(sanitized_document)
 
     print("Step 5: Defining schema...")
-    schema = Schema(name="generic_extraction")
+    schema = Schema()  # Create empty schema
     schema.add_field("summary", FieldType.STRING, required=True)
     schema.add_field("key_points", FieldType.ARRAY, required=False)
 
