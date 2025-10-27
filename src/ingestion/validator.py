@@ -167,7 +167,8 @@ class DocumentValidator:
         Args:
             rules: List of validation rules to apply (default: basic validation)
         """
-        self.rules = rules or self._default_rules()
+        # Explicit None check to allow empty list (rules=[])
+        self.rules = rules if rules is not None else self._default_rules()
 
     def _default_rules(self) -> List[ValidationRule]:
         """Default validation rules
