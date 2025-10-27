@@ -27,9 +27,7 @@ This template provides a production-ready foundation for creating document proce
 
 ## Based on Learning
 
-This template is based on **L208: Document Processing Agent Template Pattern**, which analyzed:
-- **private-docx-AGET** (v2.7.0) - DOCX processing with OpenAI Structured Outputs
-- **private-RKB-CONTENT_ENHANCER-aget** (v4.0) - Wiki content management with multi-provider LLM
+This template is based on **L208: Document Processing Agent Template Pattern**, which analyzed production document processing agents to extract common patterns and best practices.
 
 Pattern extraction identified:
 - 5 major shared pattern categories

@@ -26,8 +26,5 @@
     "metrics_collection"
   ],
   "based_on_learning": "L208_document_processing_template_pattern.md",
-  "source_agents_analyzed": [
-    "private-docx-AGET (v2.7.0)",
-    "private-RKB-CONTENT_ENHANCER-aget (v4.0)"
-  ]
+  "source_pattern_count": 2
 }
