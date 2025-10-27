@@ -94,7 +94,7 @@ git push -u origin main
 - **`src/output/`** - Publishing, version management, rollback
 - **`src/security/`** - Input sanitization, content filtering, resource limiting
 - **`src/pipeline/`** - Task decomposition, orchestration, metrics
-- **`src/wikitext/`** - Domain-specific support (extensible for other formats)
+- **`src/wikitext/`** - Document format support (docx, wikitext, extensible for additional formats)
 
 ### Configuration Files (9 YAMLs)
 
@@ -247,7 +247,7 @@ python3 .aget/tools/instantiate_template.py --check ~/github/invoice-processor-A
 - **30 contract tests** (20 smoke + 10 integration, 100% passing)
 - Multi-provider LLM support (OpenAI, Anthropic, Google)
 - Security protocols (input sanitization, content filtering, resource limits)
-- Wikitext support (extensible to other formats)
+- Document format support (docx, wikitext, extensible to additional formats)
 
 ## Support
 
