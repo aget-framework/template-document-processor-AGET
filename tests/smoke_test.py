@@ -54,7 +54,8 @@ def test_gate_2a_ingestion_validator():
     validator = DocumentValidator()
     # Correct API: max_bytes (not max_size_mb)
     validator.add_rule(FileSizeValidator(max_bytes=10 * 1024 * 1024))  # 10 MB
-    validator.add_rule(FileFormatValidator(allowed_formats=['.pdf', '.docx']))
+    # Correct API: allowed_extensions (not allowed_formats)
+    validator.add_rule(FileFormatValidator(allowed_extensions=['.pdf', '.docx']))
 
     # Validator instantiates successfully
     assert len(validator.rules) == 2

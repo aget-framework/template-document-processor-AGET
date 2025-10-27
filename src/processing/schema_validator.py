@@ -15,6 +15,19 @@ from enum import Enum
 import re
 
 
+class FieldType(Enum):
+    """Field data types for schema validation
+
+    Added per API Specification v1.0 for type safety.
+    Maps to Python types: STRING=str, NUMBER=float/int, etc.
+    """
+    STRING = "string"
+    NUMBER = "number"
+    BOOLEAN = "boolean"
+    ARRAY = "array"
+    OBJECT = "object"
+
+
 class ValidationSeverity(Enum):
     """Validation issue severity"""
     ERROR = "error"
@@ -35,7 +48,7 @@ class ValidationIssue:
 @dataclass
 class ValidationResult:
     """Result of schema validation"""
-    valid: bool
+    is_valid: bool  # Renamed from 'valid' per API Specification v1.0
     issues: List[ValidationIssue]
     validated_data: Optional[Dict] = None
 
@@ -152,21 +165,61 @@ class SchemaField:
 class Schema:
     """Schema definition for LLM output validation
 
-    Example:
+    Example (dict-based):
         schema = Schema({
             'title': SchemaField(str, max_length=200, pattern=r'^[^<>]*$'),
             'summary': SchemaField(str, max_length=1000),
             'category': SchemaField(str, allowed_values=['tech', 'business', 'science'])
         })
+
+    Example (fluent API):
+        schema = Schema()
+        schema.add_field('title', FieldType.STRING, required=True)
+        schema.add_field('count', FieldType.NUMBER, required=False)
     """
 
-    def __init__(self, fields: Dict[str, SchemaField]):
+    def __init__(self, fields: Optional[Dict[str, SchemaField]] = None):
         """Initialize schema
 
         Args:
-            fields: Dictionary mapping field names to SchemaField definitions
+            fields: Optional dictionary mapping field names to SchemaField definitions
+                   If None, use add_field() to build schema incrementally
         """
-        self.fields = fields
+        self.fields = fields or {}
+
+    def add_field(
+        self,
+        name: str,
+        field_type: FieldType,
+        required: bool = False,
+        description: Optional[str] = None
+    ) -> None:
+        """Add a field to the schema (fluent API)
+
+        Added per API Specification v1.0 for fluent schema building.
+
+        Args:
+            name: Field name
+            field_type: Field type (FieldType enum)
+            required: Whether field is required
+            description: Optional field description
+        """
+        # Map FieldType enum to Python type
+        type_mapping = {
+            FieldType.STRING: str,
+            FieldType.NUMBER: (int, float),
+            FieldType.BOOLEAN: bool,
+            FieldType.ARRAY: list,
+            FieldType.OBJECT: dict
+        }
+
+        python_type = type_mapping.get(field_type, str)
+
+        self.fields[name] = SchemaField(
+            field_type=python_type,
+            required=required,
+            description=description or ""
+        )
 
     def validate(self, data: Dict[str, Any]) -> ValidationResult:
         """Validate data against schema
@@ -205,7 +258,7 @@ class Schema:
         valid = not any(i.severity == ValidationSeverity.ERROR for i in issues)
 
         return ValidationResult(
-            valid=valid,
+            is_valid=valid,
             issues=issues,
             validated_data=data if valid else None
         )
@@ -252,7 +305,7 @@ class SchemaValidator:
 
         # Update valid flag if security issues found
         if security_issues:
-            result.valid = False
+            result.is_valid = False
 
         return result
 
