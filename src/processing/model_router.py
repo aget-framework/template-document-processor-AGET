@@ -32,10 +32,11 @@ class ComplexityLevel(Enum):
 class RoutingDecision:
     """Result of model routing decision"""
     model: str
+    provider: str  # Added per API Specification v1.0
     strategy: RoutingStrategy
     complexity: Optional[ComplexityLevel] = None
     confidence: float = 1.0
-    rationale: str = ""
+    reasoning: str = ""  # Renamed from 'rationale' for API consistency
     estimated_cost: float = 0.0
     estimated_latency: float = 0.0
 
@@ -70,17 +71,26 @@ class StaticRouter(BaseRouter):
     Based on L208 lines 37-41 (Static Routing)
     """
 
-    def __init__(self, routing_rules: Optional[Dict] = None):
+    def __init__(
+        self,
+        default_model: str,  # Required per API Specification v1.0
+        default_provider: str,  # Required per API Specification v1.0
+        routing_rules: Optional[Dict] = None
+    ):
         """Initialize static router
 
         Args:
-            routing_rules: Dictionary mapping conditions to models
+            default_model: Default model to use for routing
+            default_provider: Default provider (openai, anthropic, google)
+            routing_rules: Optional dictionary mapping conditions to models
                           Example: {
                               'complexity_low': 'gpt-4o-mini',
                               'complexity_medium': 'gemini-2.5-flash',
                               'complexity_high': 'gemini-2.5-pro'
                           }
         """
+        self.default_model = default_model
+        self.default_provider = default_provider
         self.routing_rules = routing_rules or self._default_rules()
 
     def _default_rules(self) -> Dict:
@@ -122,10 +132,11 @@ class StaticRouter(BaseRouter):
 
         return RoutingDecision(
             model=rule['model'],
+            provider=self.default_provider,  # Use default provider
             strategy=RoutingStrategy.STATIC,
             complexity=complexity,
             confidence=1.0,
-            rationale=f"Static routing: {complexity.value} complexity → {rule['model']}",
+            reasoning=f"Static routing: {complexity.value} complexity → {rule['model']}",  # Renamed from rationale
             estimated_cost=rule['cost_per_1k'],
             estimated_latency=rule['latency_sec']
         )
@@ -207,16 +218,25 @@ class DynamicRouter(BaseRouter):
         # If confidence is low, escalate to better model
         if confidence < 0.5:
             model, cost, latency = model_map[ComplexityLevel.HIGH]
-            rationale = f"Low confidence ({confidence:.2f}), escalating to {model}"
+            reasoning = f"Low confidence ({confidence:.2f}), escalating to {model}"
+            provider = "google"  # gemini-2.5-pro
         else:
-            rationale = f"Dynamic routing: {complexity.value} complexity (confidence: {confidence:.2f}) → {model}"
+            reasoning = f"Dynamic routing: {complexity.value} complexity (confidence: {confidence:.2f}) → {model}"
+            # Map model to provider
+            if "gpt" in model:
+                provider = "openai"
+            elif "gemini" in model:
+                provider = "google"
+            else:
+                provider = "anthropic"
 
         return RoutingDecision(
             model=model,
+            provider=provider,
             strategy=RoutingStrategy.DYNAMIC,
             complexity=complexity,
             confidence=confidence,
-            rationale=rationale,
+            reasoning=reasoning,  # Renamed from rationale
             estimated_cost=cost,
             estimated_latency=latency
         )
@@ -304,10 +324,11 @@ class EnsembleRouter(BaseRouter):
 
         return RoutingDecision(
             model=f"ensemble({','.join(self.models)})",
+            provider="ensemble",  # Multiple providers
             strategy=RoutingStrategy.ENSEMBLE,
             complexity=ComplexityLevel.HIGH,
             confidence=0.95,  # High confidence due to multiple models
-            rationale=f"Ensemble routing: {len(self.models)} models with {self.aggregation} aggregation",
+            reasoning=f"Ensemble routing: {len(self.models)} models with {self.aggregation} aggregation",  # Renamed from rationale
             estimated_cost=total_cost,
             estimated_latency=avg_latency
         )

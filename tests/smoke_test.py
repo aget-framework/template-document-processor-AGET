@@ -114,8 +114,8 @@ def test_gate_2a_processing_model_router():
     """Test model_router.py: Routing decisions"""
     from processing.model_router import ModelRouter, StaticRouter
 
-    # Correct API: requires BaseRouter instance as primary_strategy
-    static_router = StaticRouter(model="gpt-4", provider="openai")
+    # Correct API: StaticRouter requires default_model and default_provider
+    static_router = StaticRouter(default_model="gpt-4", default_provider="openai")
     router = ModelRouter(primary_strategy=static_router)
 
     # Test routing decision
