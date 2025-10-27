@@ -1,0 +1,328 @@
+# Caching Configuration
+#
+# Defines caching strategies for LLM responses and processed documents.
+# References: llm_providers.yaml
+# Implements: src/processing/cache_manager.py
+
+version: "1.0"
+metadata:
+  description: "Caching configuration for document processing pipeline"
+  based_on: "L208 lines 283-300 (Caching Strategy)"
+  updated: "2025-10-26"
+  dependencies:
+    - "llm_providers.yaml"
+
+# Cache Backend Configuration
+backend:
+  # Primary backend
+  type: "simple"  # Options: simple, redis, memcached, filesystem
+
+  # Simple in-memory cache (default)
+  simple:
+    enabled: true
+    max_entries: 10000
+    max_memory_mb: 512
+    eviction_policy: "lru"  # Options: lru, lfu, fifo, ttl
+
+  # Redis backend (production)
+  redis:
+    enabled: false
+    host: "localhost"
+    port: 6379
+    db: 0
+    password_env: "REDIS_PASSWORD"
+    ssl: false
+    max_connections: 50
+
+    # Redis-specific
+    key_prefix: "aget_doc_processor:"
+    serialization: "json"  # Options: json, pickle, msgpack
+
+  # Memcached backend
+  memcached:
+    enabled: false
+    servers:
+      - "localhost:11211"
+    max_pool_size: 10
+
+  # Filesystem cache
+  filesystem:
+    enabled: false
+    cache_dir: ".aget/cache"
+    max_size_mb: 1024
+    compression: "gzip"  # Options: none, gzip, lz4
+
+# Cache Key Generation
+cache_keys:
+  # Components included in cache key (order matters for consistency)
+  components:
+    - "provider"      # From llm_providers.yaml
+    - "model"         # From llm_providers.yaml
+    - "prompt"        # User prompt
+    - "temperature"   # LLM parameter
+    - "seed"          # For reproducibility per L208:207-227
+
+  # Key format
+  format: "{provider}:{model}:{prompt_hash}:{temperature}:{seed}"
+
+  # Prompt hashing
+  prompt_hash:
+    algorithm: "sha256"
+    length: 16  # Use first 16 chars of hash
+    normalize: true  # Normalize whitespace before hashing
+
+  # Exclude from key (for cache hit maximization)
+  exclude:
+    - "max_tokens"  # Don't include in key (varies by request)
+    - "top_p"       # Usually constant, don't pollute key
+
+# Cache Policies
+policies:
+  # Time-to-live (TTL)
+  ttl:
+    # Default TTL
+    default_seconds: 3600  # 1 hour
+
+    # Per-task TTL overrides
+    extraction: 7200       # 2 hours (structured data extraction)
+    summarization: 3600    # 1 hour (summaries)
+    classification: 14400  # 4 hours (classifications stable)
+    analysis: 1800         # 30 min (analysis may change)
+
+    # Special TTL for errors
+    error_cache_seconds: 300  # Cache errors for 5 min to avoid retries
+
+  # Cache invalidation
+  invalidation:
+    # Invalidate on events
+    on_events:
+      - "model_update"            # New model version deployed
+      - "prompt_version_change"   # Prompt template updated
+      - "schema_change"           # Extraction schema modified
+
+    # Manual invalidation
+    allow_manual: true
+    invalidation_endpoint: "/cache/invalidate"
+
+    # Time-based invalidation
+    scheduled:
+      enabled: false
+      cron: "0 0 * * *"  # Daily at midnight
+
+  # Cache warming (preload common queries)
+  warming:
+    enabled: false
+
+    # Queries to preload
+    queries:
+      # Example: Common extraction schemas
+      # - task: "extraction"
+      #   schema: "invoice_schema_v1"
+      #   sample_documents: 10
+
+# Cache Behavior
+behavior:
+  # Cache reads
+  read:
+    enabled: true
+    timeout_ms: 100  # Cache read timeout
+
+    # Fallback on cache miss
+    on_miss: "process"  # Options: process, error, return_none
+
+    # Concurrent cache reads
+    max_concurrent_reads: 100
+
+  # Cache writes
+  write:
+    enabled: true
+    async: true  # Write asynchronously to not block requests
+    timeout_ms: 500
+
+    # Write policies
+    on_error: "log"  # Options: log, ignore, raise
+    retry_on_failure: true
+    max_retries: 3
+
+  # Cache updates
+  update:
+    strategy: "replace"  # Options: replace, merge, append
+    versioning: false    # Keep version history
+
+# Cache Optimization
+optimization:
+  # Compression
+  compression:
+    enabled: true
+    min_size_bytes: 1024  # Compress entries > 1KB
+    algorithm: "gzip"     # Options: gzip, lz4, snappy
+    level: 6              # Compression level (1-9)
+
+  # Deduplication
+  deduplication:
+    enabled: true
+    hash_algorithm: "sha256"
+
+  # Prefetching (predict and cache likely queries)
+  prefetching:
+    enabled: false
+    lookahead: 5  # Prefetch next N likely queries
+
+# Cache Monitoring
+monitoring:
+  # Metrics collection
+  metrics:
+    enabled: true
+
+    # Metrics to track
+    track:
+      - "hit_rate"
+      - "miss_rate"
+      - "eviction_rate"
+      - "size_bytes"
+      - "entry_count"
+      - "avg_entry_size"
+      - "read_latency"
+      - "write_latency"
+
+    # Export interval
+    export_interval_seconds: 60
+
+  # Alerts
+  alerts:
+    low_hit_rate_threshold: 0.5  # Alert if hit rate < 50%
+    high_memory_threshold_percent: 90
+    high_eviction_rate_threshold: 100  # Evictions per minute
+
+# Provider-Specific Caching
+provider_config:
+  # OpenAI (from llm_providers.yaml)
+  openai:
+    cache_enabled: true
+    default_ttl_seconds: 3600
+
+    # Model-specific caching
+    models:
+      gpt-4o-2024-08-06:
+        cache_enabled: true
+        ttl_seconds: 7200  # Cache longer for expensive model
+
+      gpt-4o-mini:
+        cache_enabled: true
+        ttl_seconds: 3600
+
+      gpt-3.5-turbo:
+        cache_enabled: true
+        ttl_seconds: 1800  # Shorter TTL for cheaper model
+
+  # Anthropic (from llm_providers.yaml)
+  anthropic:
+    cache_enabled: true
+    default_ttl_seconds: 3600
+
+    # Model-specific caching
+    models:
+      claude-3-5-sonnet-20241022:
+        cache_enabled: true
+        ttl_seconds: 7200
+
+      claude-3-opus-20240229:
+        cache_enabled: true
+        ttl_seconds: 10800  # 3 hours for most expensive
+
+      claude-3-haiku-20240307:
+        cache_enabled: true
+        ttl_seconds: 1800
+
+  # Mock provider
+  mock:
+    cache_enabled: false  # Don't cache mock responses
+
+# Cost Optimization
+cost_optimization:
+  # Cache for cost reduction
+  cost_aware_caching:
+    enabled: true
+
+    # Cache expensive models longer
+    expensive_model_ttl_multiplier: 2.0
+    cheap_model_ttl_multiplier: 0.5
+
+    # Prioritize caching by cost
+    eviction_priority: "cost"  # Options: cost, age, size, frequency
+
+  # Budget tracking
+  budget:
+    track_cache_savings: true
+    estimated_savings_usd: null  # Calculated dynamically
+
+# Integration with CacheManager
+cache_manager:
+  class: "processing.cache_manager.CacheManager"
+
+  # Initialization
+  config:
+    backend_type: "${backend.type}"
+    max_size: "${backend.simple.max_entries}"
+    ttl_seconds: "${policies.ttl.default_seconds}"
+
+# Debugging
+debug:
+  # Debug mode
+  enabled: false
+
+  # Logging
+  log_hits: false
+  log_misses: false
+  log_evictions: true
+  log_invalidations: true
+
+  # Cache inspection
+  allow_inspection: true
+  inspection_endpoint: "/cache/inspect"
+
+# Usage Example:
+#
+# from processing.cache_manager import CacheManager
+# import yaml
+#
+# # Load config
+# with open('configs/caching.yaml') as f:
+#     config = yaml.safe_load(f)
+#
+# # Create cache manager
+# cache = CacheManager(
+#     backend_type=config['backend']['type'],
+#     max_size=config['backend']['simple']['max_entries'],
+#     ttl_seconds=config['policies']['ttl']['default_seconds']
+# )
+#
+# # Check cache before LLM request
+# cache_key = cache.generate_key(
+#     provider="openai",
+#     model="gpt-4o-2024-08-06",
+#     prompt="Extract data from document",
+#     temperature=0.0,
+#     seed=42
+# )
+#
+# # Try to get from cache
+# cached_response = cache.get(cache_key)
+# if cached_response:
+#     print(f"Cache hit! Saved ${cached_response.cost_usd}")
+#     response = cached_response.response
+# else:
+#     # Cache miss - call LLM
+#     response = llm_provider.complete(prompt)
+#
+#     # Store in cache
+#     cache.set(
+#         key=cache_key,
+#         response=response,
+#         ttl_seconds=config['policies']['ttl']['extraction']
+#     )
+#
+# # Get cache statistics
+# stats = cache.get_stats()
+# print(f"Hit rate: {stats['hit_rate']:.2%}")
+# print(f"Estimated savings: ${stats['cost_savings_usd']:.2f}")

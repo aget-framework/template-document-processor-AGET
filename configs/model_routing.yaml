@@ -1,0 +1,313 @@
+# Model Routing Configuration
+#
+# Defines routing strategies for LLM requests across providers and models.
+# References: llm_providers.yaml
+# Implements: src/processing/model_router.py
+
+version: "1.0"
+metadata:
+  description: "Model routing and selection strategies for document processing"
+  based_on: "L208 lines 163-199 (LLM Processing Architecture)"
+  updated: "2025-10-26"
+  dependencies:
+    - "llm_providers.yaml"
+
+# Default Provider and Model
+defaults:
+  provider: "openai"                    # From llm_providers.yaml
+  model: "gpt-4o-2024-08-06"           # From llm_providers.yaml providers.openai.models
+  fallback_provider: "anthropic"        # Fallback if primary fails
+  fallback_model: "claude-3-5-sonnet-20241022"
+
+# Routing Strategies
+routing:
+  # Primary routing strategy
+  strategy: "task_based"  # Options: task_based, cost_based, latency_based, round_robin, provider_priority
+
+  # Task-based routing (routes based on document processing task)
+  task_based:
+    # Data extraction tasks
+    extraction:
+      preferred_provider: "openai"
+      preferred_model: "gpt-4o-2024-08-06"
+      reason: "Structured output support per L208:230-246"
+      alternatives:
+        - provider: "anthropic"
+          model: "claude-3-5-sonnet-20241022"
+          condition: "primary_unavailable"
+
+    # Summarization tasks
+    summarization:
+      preferred_provider: "openai"
+      preferred_model: "gpt-4o-mini"  # Cost-effective for summarization
+      reason: "Lower cost, sufficient quality"
+      alternatives:
+        - provider: "anthropic"
+          model: "claude-3-haiku-20240307"
+          condition: "cost_optimization"
+
+    # Classification tasks
+    classification:
+      preferred_provider: "openai"
+      preferred_model: "gpt-4o-mini"
+      reason: "Simple task, cost-effective model"
+      alternatives:
+        - provider: "openai"
+          model: "gpt-3.5-turbo"
+          condition: "high_volume"
+
+    # Complex analysis tasks
+    analysis:
+      preferred_provider: "anthropic"
+      preferred_model: "claude-3-5-sonnet-20241022"
+      reason: "Higher context window, better reasoning"
+      alternatives:
+        - provider: "openai"
+          model: "gpt-4o-2024-08-06"
+          condition: "primary_unavailable"
+
+  # Cost-based routing
+  cost_based:
+    enabled: true
+
+    # Cost thresholds (from llm_providers.yaml)
+    thresholds:
+      cheap:
+        max_cost_per_1k_tokens: 0.001
+        preferred_models:
+          - provider: "openai"
+            model: "gpt-4o-mini"
+          - provider: "anthropic"
+            model: "claude-3-haiku-20240307"
+
+      moderate:
+        max_cost_per_1k_tokens: 0.005
+        preferred_models:
+          - provider: "openai"
+            model: "gpt-4o-2024-08-06"
+
+      expensive:
+        max_cost_per_1k_tokens: 0.02
+        preferred_models:
+          - provider: "anthropic"
+            model: "claude-3-5-sonnet-20241022"
+          - provider: "anthropic"
+            model: "claude-3-opus-20240229"
+
+    # Budget enforcement
+    budget:
+      daily_limit_usd: 100.0
+      alert_threshold_percent: 80
+      action_on_exceed: "switch_to_cheap"  # Options: switch_to_cheap, queue, reject
+
+  # Latency-based routing
+  latency_based:
+    enabled: false
+
+    # Target latencies (ms)
+    targets:
+      realtime: 1000
+      interactive: 3000
+      batch: 10000
+
+    # Model selection by latency requirement
+    realtime_models:
+      - provider: "openai"
+        model: "gpt-4o-mini"
+      - provider: "anthropic"
+        model: "claude-3-haiku-20240307"
+
+    batch_models:
+      - provider: "openai"
+        model: "gpt-4o-2024-08-06"
+      - provider: "anthropic"
+        model: "claude-3-5-sonnet-20241022"
+
+  # Provider priority routing (from llm_providers.yaml priority field)
+  provider_priority:
+    enabled: true
+
+    # Priority order (higher number = higher priority)
+    priorities:
+      openai: 1      # From llm_providers.yaml providers.openai.priority
+      anthropic: 2   # From llm_providers.yaml providers.anthropic.priority
+      mock: 0        # From llm_providers.yaml providers.mock.priority
+
+    # Fallback cascade
+    cascade_on_failure: true
+
+# Load Balancing
+load_balancing:
+  enabled: false  # Disable unless multiple instances
+
+  # Strategy
+  strategy: "round_robin"  # Options: round_robin, least_loaded, random
+
+  # Health checking
+  health_check:
+    enabled: true
+    interval_seconds: 60
+    timeout_seconds: 5
+    unhealthy_threshold: 3    # Failures before marking unhealthy
+    healthy_threshold: 2      # Successes before marking healthy
+
+# Request Routing Rules
+routing_rules:
+  # Route by document size
+  size_based:
+    enabled: true
+
+    rules:
+      - condition: "size_bytes < 10000"  # Small documents
+        provider: "openai"
+        model: "gpt-4o-mini"
+        reason: "Fast, cost-effective for small docs"
+
+      - condition: "10000 <= size_bytes < 100000"  # Medium documents
+        provider: "openai"
+        model: "gpt-4o-2024-08-06"
+        reason: "Standard processing"
+
+      - condition: "size_bytes >= 100000"  # Large documents
+        provider: "anthropic"
+        model: "claude-3-5-sonnet-20241022"
+        reason: "Higher context window for large docs"
+
+  # Route by content type
+  content_type_based:
+    enabled: true
+
+    rules:
+      - content_type: "application/pdf"
+        provider: "openai"
+        model: "gpt-4o-2024-08-06"
+        reason: "Good PDF understanding"
+
+      - content_type: "text/html"
+        provider: "anthropic"
+        model: "claude-3-5-sonnet-20241022"
+        reason: "Better HTML structure understanding"
+
+  # Route by schema complexity
+  schema_complexity_based:
+    enabled: true
+
+    rules:
+      - condition: "field_count <= 10"  # Simple schemas
+        provider: "openai"
+        model: "gpt-4o-mini"
+        reason: "Simple extraction, cost-effective"
+
+      - condition: "field_count > 10 and nested_depth <= 2"  # Moderate schemas
+        provider: "openai"
+        model: "gpt-4o-2024-08-06"
+        reason: "Standard structured output"
+
+      - condition: "nested_depth > 2"  # Complex schemas
+        provider: "anthropic"
+        model: "claude-3-5-sonnet-20241022"
+        reason: "Better handling of nested structures"
+
+# Failover Configuration
+failover:
+  enabled: true
+
+  # Automatic failover
+  automatic: true
+  max_retries: 3  # Per provider before failover
+
+  # Failover cascade (order of providers to try)
+  cascade:
+    - provider: "openai"
+      model: "gpt-4o-2024-08-06"
+    - provider: "anthropic"
+      model: "claude-3-5-sonnet-20241022"
+    - provider: "openai"
+      model: "gpt-4o-mini"
+    - provider: "mock"  # Last resort for testing
+      model: "mock-model"
+
+  # Failover conditions
+  conditions:
+    - "RATE_LIMIT"
+    - "SERVICE_UNAVAILABLE"
+    - "TIMEOUT"
+    - "AUTHENTICATION_ERROR"
+
+  # Failback (return to primary after recovery)
+  failback:
+    enabled: true
+    check_interval_seconds: 300
+    healthy_duration_seconds: 600  # Primary must be healthy for 10 min
+
+# Request Tracking
+tracking:
+  # Track routing decisions
+  log_routing_decisions: true
+  log_failovers: true
+
+  # Metrics
+  metrics:
+    - "requests_per_provider"
+    - "requests_per_model"
+    - "failover_rate"
+    - "cost_per_provider"
+    - "latency_per_provider"
+
+# A/B Testing (optional)
+ab_testing:
+  enabled: false
+
+  # Experiments
+  experiments:
+    # Example: Test new model performance
+    # - name: "gpt4o-vs-claude35"
+    #   traffic_split:
+    #     gpt-4o-2024-08-06: 0.5
+    #     claude-3-5-sonnet-20241022: 0.5
+    #   duration_days: 7
+    #   metrics:
+    #     - "accuracy"
+    #     - "latency"
+    #     - "cost"
+
+# Integration with ModelRouter
+router:
+  class: "processing.model_router.ModelRouter"
+
+  # Initialization
+  config:
+    default_provider: "${defaults.provider}"
+    default_model: "${defaults.model}"
+    providers_config: "llm_providers.yaml"
+
+# Usage Example:
+#
+# from processing.model_router import ModelRouter
+# import yaml
+#
+# # Load configs
+# with open('configs/model_routing.yaml') as f:
+#     routing_config = yaml.safe_load(f)
+#
+# with open('configs/llm_providers.yaml') as f:
+#     providers_config = yaml.safe_load(f)
+#
+# # Create router
+# router = ModelRouter(
+#     default_provider=routing_config['defaults']['provider'],
+#     default_model=routing_config['defaults']['model']
+# )
+#
+# # Route request based on task
+# task = "extraction"
+# task_config = routing_config['routing']['task_based'][task]
+# provider = task_config['preferred_provider']
+# model = task_config['preferred_model']
+#
+# # Route with automatic failover
+# response = router.route_request(
+#     prompt="Extract data from document",
+#     task_type=task,
+#     fallback=routing_config['defaults']['fallback_provider']
+# )

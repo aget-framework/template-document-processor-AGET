@@ -1,0 +1,398 @@
+# Metrics Configuration
+#
+# Defines observability metrics for document processing pipeline.
+# Implements: src/pipeline/metrics_collector.py
+
+version: "1.0"
+metadata:
+  description: "Metrics and observability configuration"
+  based_on: "L208 lines 301-329 (Observability & Monitoring)"
+  updated: "2025-10-26"
+
+# Metrics Collection
+collection:
+  # Enable metrics
+  enabled: true
+
+  # Collection interval
+  interval_seconds: 60
+
+  # Metrics backend
+  backend: "prometheus"  # Options: prometheus, statsd, datadog, cloudwatch
+
+  # Export configuration
+  export:
+    enabled: true
+    format: "prometheus"  # Options: prometheus, json, statsd
+    port: 9090
+    path: "/metrics"
+
+# Pipeline Metrics (per L208:301-329)
+pipeline_metrics:
+  # Document processing metrics
+  processing:
+    # Throughput metrics
+    throughput:
+      documents_processed_total:
+        type: "counter"
+        description: "Total documents processed"
+        labels: ["status", "task_type"]
+
+      documents_per_second:
+        type: "gauge"
+        description: "Current processing rate"
+
+      batch_size:
+        type: "histogram"
+        description: "Batch size distribution"
+        buckets: [1, 5, 10, 20, 50, 100]
+
+    # Latency metrics
+    latency:
+      processing_duration_seconds:
+        type: "histogram"
+        description: "End-to-end processing time"
+        buckets: [0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0]
+        labels: ["task_type", "document_type"]
+
+      queue_wait_time_seconds:
+        type: "histogram"
+        description: "Time waiting in queue"
+        buckets: [0.1, 1.0, 5.0, 10.0, 30.0, 60.0]
+
+      validation_duration_seconds:
+        type: "histogram"
+        description: "Validation time"
+        buckets: [0.01, 0.05, 0.1, 0.5, 1.0]
+
+    # Error metrics
+    errors:
+      processing_errors_total:
+        type: "counter"
+        description: "Total processing errors"
+        labels: ["error_type", "task_type"]
+
+      retry_attempts_total:
+        type: "counter"
+        description: "Total retry attempts"
+        labels: ["provider", "error_type"]
+
+      failures_total:
+        type: "counter"
+        description: "Total failures after retries"
+        labels: ["provider", "task_type"]
+
+# LLM Metrics
+llm_metrics:
+  # Request metrics
+  requests:
+    llm_requests_total:
+      type: "counter"
+      description: "Total LLM requests"
+      labels: ["provider", "model", "task_type"]
+
+    llm_requests_in_flight:
+      type: "gauge"
+      description: "Current in-flight LLM requests"
+      labels: ["provider"]
+
+  # Token usage
+  tokens:
+    tokens_used_total:
+      type: "counter"
+      description: "Total tokens used"
+      labels: ["provider", "model", "token_type"]  # token_type: input, output
+
+    tokens_per_request:
+      type: "histogram"
+      description: "Token usage per request"
+      buckets: [10, 50, 100, 500, 1000, 5000, 10000, 50000]
+      labels: ["provider", "model"]
+
+  # Cost metrics (per L208:207-227)
+  cost:
+    llm_cost_usd_total:
+      type: "counter"
+      description: "Total LLM cost in USD"
+      labels: ["provider", "model"]
+
+    llm_cost_per_request:
+      type: "histogram"
+      description: "Cost per request distribution"
+      buckets: [0.001, 0.01, 0.1, 1.0, 10.0]
+      labels: ["provider"]
+
+  # Cache metrics
+  cache:
+    cache_hits_total:
+      type: "counter"
+      description: "Total cache hits"
+      labels: ["provider", "model"]
+
+    cache_misses_total:
+      type: "counter"
+      description: "Total cache misses"
+      labels: ["provider", "model"]
+
+    cache_hit_rate:
+      type: "gauge"
+      description: "Current cache hit rate"
+      labels: ["provider"]
+
+    cache_size_bytes:
+      type: "gauge"
+      description: "Current cache size"
+
+    cache_entries:
+      type: "gauge"
+      description: "Number of cache entries"
+
+# Resource Metrics
+resource_metrics:
+  # CPU metrics
+  cpu:
+    cpu_usage_percent:
+      type: "gauge"
+      description: "CPU usage percentage"
+
+    cpu_time_seconds_total:
+      type: "counter"
+      description: "Total CPU time"
+
+  # Memory metrics
+  memory:
+    memory_usage_bytes:
+      type: "gauge"
+      description: "Current memory usage"
+
+    memory_available_bytes:
+      type: "gauge"
+      description: "Available memory"
+
+    memory_percent:
+      type: "gauge"
+      description: "Memory usage percentage"
+
+  # Disk metrics
+  disk:
+    disk_usage_bytes:
+      type: "gauge"
+      description: "Disk space used"
+
+    disk_available_bytes:
+      type: "gauge"
+      description: "Disk space available"
+
+# Quality Metrics
+quality_metrics:
+  # Validation metrics
+  validation:
+    validation_failures_total:
+      type: "counter"
+      description: "Total validation failures"
+      labels: ["validation_type", "severity"]
+
+    validation_warnings_total:
+      type: "counter"
+      description: "Total validation warnings"
+      labels: ["validation_type"]
+
+  # Extraction quality
+  extraction:
+    fields_extracted_total:
+      type: "counter"
+      description: "Total fields extracted"
+      labels: ["schema_name"]
+
+    extraction_confidence:
+      type: "histogram"
+      description: "Extraction confidence scores"
+      buckets: [0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 1.0]
+
+# Business Metrics
+business_metrics:
+  # Document types processed
+  documents:
+    documents_by_type_total:
+      type: "counter"
+      description: "Documents processed by type"
+      labels: ["document_type"]
+
+    documents_by_source_total:
+      type: "counter"
+      description: "Documents processed by source"
+      labels: ["source"]
+
+  # Processing outcomes
+  outcomes:
+    successful_extractions_total:
+      type: "counter"
+      description: "Successful extractions"
+      labels: ["task_type"]
+
+    partial_extractions_total:
+      type: "counter"
+      description: "Partial extractions (some fields missing)"
+      labels: ["task_type"]
+
+# SLA Metrics (Service Level Agreement)
+sla_metrics:
+  # Availability
+  availability:
+    uptime_seconds:
+      type: "counter"
+      description: "Total uptime"
+
+    availability_percent:
+      type: "gauge"
+      description: "Current availability percentage"
+
+  # Performance
+  performance:
+    requests_under_sla_total:
+      type: "counter"
+      description: "Requests meeting SLA"
+      labels: ["sla_target"]
+
+    requests_over_sla_total:
+      type: "counter"
+      description: "Requests exceeding SLA"
+      labels: ["sla_target"]
+
+    p50_latency_seconds:
+      type: "gauge"
+      description: "50th percentile latency"
+
+    p95_latency_seconds:
+      type: "gauge"
+      description: "95th percentile latency"
+
+    p99_latency_seconds:
+      type: "gauge"
+      description: "99th percentile latency"
+
+# Custom Metrics
+custom_metrics:
+  # Agent-specific metrics can be added here
+  # Example:
+  # domain_specific:
+  #   contracts_processed_total:
+  #     type: "counter"
+  #     description: "Total contracts processed"
+  #     labels: ["contract_type"]
+
+# Metric Aggregation
+aggregation:
+  # Time windows
+  windows:
+    - "1m"   # 1 minute
+    - "5m"   # 5 minutes
+    - "15m"  # 15 minutes
+    - "1h"   # 1 hour
+    - "24h"  # 1 day
+
+  # Aggregation functions
+  functions:
+    - "sum"
+    - "avg"
+    - "min"
+    - "max"
+    - "p50"
+    - "p95"
+    - "p99"
+
+# Dashboards
+dashboards:
+  # Grafana dashboard configuration
+  grafana:
+    enabled: false
+
+    dashboards:
+      - name: "Pipeline Overview"
+        file: "dashboards/pipeline_overview.json"
+
+      - name: "LLM Metrics"
+        file: "dashboards/llm_metrics.json"
+
+      - name: "Resource Usage"
+        file: "dashboards/resource_usage.json"
+
+# Alerts
+alerts:
+  enabled: true
+
+  # Alert rules
+  rules:
+    # High error rate
+    high_error_rate:
+      condition: "error_rate > 0.1"  # 10% error rate
+      severity: "critical"
+      notification: ["email", "slack"]
+
+    # High latency
+    high_latency:
+      condition: "p95_latency_seconds > 10.0"
+      severity: "warning"
+      notification: ["slack"]
+
+    # Low cache hit rate
+    low_cache_hit_rate:
+      condition: "cache_hit_rate < 0.5"
+      severity: "warning"
+      notification: ["email"]
+
+    # High cost
+    high_cost:
+      condition: "llm_cost_usd_total > 100.0"  # Daily budget
+      severity: "warning"
+      notification: ["email"]
+
+    # Resource exhaustion
+    memory_exhaustion:
+      condition: "memory_percent > 90"
+      severity: "critical"
+      notification: ["email", "slack", "pagerduty"]
+
+# Integration with MetricsCollector
+metrics_collector:
+  class: "pipeline.metrics_collector.MetricsCollector"
+
+  # Configuration
+  config:
+    enable_pipeline_metrics: true
+    enable_llm_metrics: true
+    enable_resource_metrics: true
+    collection_interval_seconds: 60
+
+# Usage Example:
+#
+# from pipeline.metrics_collector import MetricsCollector
+# import yaml
+#
+# # Load config
+# with open('configs/metrics.yaml') as f:
+#     config = yaml.safe_load(f)
+#
+# # Create metrics collector
+# collector = MetricsCollector(
+#     enable_pipeline_metrics=True,
+#     enable_llm_metrics=True,
+#     enable_resource_metrics=True
+# )
+#
+# # Record metrics during processing
+# with collector.time_operation("document_processing"):
+#     process_document(doc)
+#
+# # Record custom metrics
+# collector.increment_counter("documents_processed_total", labels={"status": "success"})
+# collector.observe_histogram("tokens_per_request", value=1234, labels={"provider": "openai"})
+#
+# # Get current metrics
+# metrics = collector.get_metrics()
+# print(f"Documents processed: {metrics['documents_processed_total']}")
+# print(f"Cache hit rate: {metrics['cache_hit_rate']:.2%}")
+# print(f"Total cost: ${metrics['llm_cost_usd_total']:.2f}")
+#
+# # Export metrics (Prometheus format)
+# prometheus_metrics = collector.export_prometheus()

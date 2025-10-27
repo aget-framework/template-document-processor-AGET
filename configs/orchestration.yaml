@@ -1,0 +1,408 @@
+# Orchestration Configuration
+#
+# Defines task decomposition and orchestration for complex document processing.
+# Implements: src/pipeline/task_decomposer.py, src/pipeline/pipeline_runner.py
+
+version: "1.0"
+metadata:
+  description: "Task decomposition and orchestration configuration"
+  based_on: "L208 lines 360-388 (Orchestration & Task Decomposition)"
+  updated: "2025-10-26"
+
+# Task Decomposition Strategy (per L208:360-388)
+task_decomposition:
+  # Decomposition approach
+  strategy: "automatic"  # Options: automatic, manual, hybrid
+
+  # Automatic decomposition rules
+  automatic:
+    enabled: true
+
+    # Decomposition triggers
+    triggers:
+      # Document size-based
+      size:
+        threshold_bytes: 100000  # Decompose documents > 100KB
+        chunk_size_bytes: 50000  # Split into 50KB chunks
+        overlap_bytes: 5000      # 5KB overlap between chunks
+
+      # Complexity-based
+      complexity:
+        field_count_threshold: 20  # Decompose schemas with > 20 fields
+        nesting_depth_threshold: 3 # Decompose if nesting > 3 levels
+
+      # Time-based
+      time:
+        estimated_duration_threshold_seconds: 60  # Decompose if estimate > 1min
+
+    # Decomposition strategies
+    strategies:
+      # Document chunking
+      chunking:
+        enabled: true
+        method: "semantic"  # Options: semantic, fixed_size, page_based
+
+        # Semantic chunking
+        semantic:
+          max_chunk_size_chars: 10000
+          min_chunk_size_chars: 1000
+          overlap_chars: 500
+          split_on: ["paragraph", "sentence", "heading"]
+
+        # Fixed-size chunking
+        fixed_size:
+          chunk_size_chars: 5000
+          overlap_chars: 500
+
+        # Page-based chunking (for PDFs)
+        page_based:
+          pages_per_chunk: 5
+          overlap_pages: 1
+
+      # Schema decomposition
+      schema:
+        enabled: true
+        method: "hierarchical"  # Options: hierarchical, flat, grouped
+
+        # Hierarchical decomposition
+        hierarchical:
+          max_fields_per_task: 10
+          preserve_relationships: true
+
+        # Grouped decomposition
+        grouped:
+          group_by: "semantic"  # Options: semantic, type, priority
+
+  # Manual decomposition
+  manual:
+    enabled: true
+
+    # User-defined task splits
+    custom_tasks:
+      # Example: Multi-step contract analysis
+      # contract_analysis:
+      #   tasks:
+      #     - name: "extract_parties"
+      #       fields: ["party_1", "party_2"]
+      #     - name: "extract_terms"
+      #       fields: ["start_date", "end_date", "payment"]
+      #     - name: "extract_obligations"
+      #       fields: ["obligations", "responsibilities"]
+
+# Task Orchestration
+orchestration:
+  # Execution mode
+  mode: "sequential"  # Options: sequential, parallel, dag
+
+  # Sequential execution
+  sequential:
+    enabled: true
+
+    # Execution order
+    order: "dependency"  # Options: dependency, priority, manual
+
+    # Error handling
+    on_task_failure: "stop"  # Options: stop, continue, retry
+
+  # Parallel execution
+  parallel:
+    enabled: true
+    max_concurrent_tasks: 5
+    timeout_per_task_seconds: 120
+
+    # Task grouping
+    grouping:
+      strategy: "independent"  # Only parallelize independent tasks
+      max_group_size: 10
+
+  # DAG (Directed Acyclic Graph) execution
+  dag:
+    enabled: false
+
+    # DAG configuration
+    config:
+      validate_acyclic: true
+      topological_sort: true
+
+# Pipeline Stages (per L208:260-267)
+pipeline_stages:
+  # Stage 1: Ingestion
+  ingestion:
+    enabled: true
+    order: 1
+
+    tasks:
+      - name: "validate_document"
+        class: "ingestion.validator.DocumentValidator"
+        required: true
+        timeout_seconds: 30
+
+      - name: "enqueue_document"
+        class: "ingestion.queue_manager.QueueManager"
+        required: true
+        timeout_seconds: 10
+
+  # Stage 2: Pre-processing
+  preprocessing:
+    enabled: true
+    order: 2
+
+    tasks:
+      - name: "sanitize_input"
+        class: "security.input_sanitizer.InputSanitizer"
+        required: true
+        timeout_seconds: 10
+
+      - name: "filter_content"
+        class: "security.content_filter.ContentFilterPipeline"
+        required: false  # Warning mode
+        timeout_seconds: 10
+
+  # Stage 3: Processing
+  processing:
+    enabled: true
+    order: 3
+
+    tasks:
+      - name: "extract_data"
+        class: "processing.llm_provider.BaseLLMProvider"
+        required: true
+        timeout_seconds: 60
+        retry_on_failure: true
+
+      - name: "validate_schema"
+        class: "processing.schema_validator.SchemaValidator"
+        required: true
+        timeout_seconds: 5
+
+  # Stage 4: Post-processing
+  postprocessing:
+    enabled: true
+    order: 4
+
+    tasks:
+      - name: "create_version"
+        class: "output.version_manager.VersionManager"
+        required: true
+        timeout_seconds: 5
+
+      - name: "publish_output"
+        class: "output.publisher.Publisher"
+        required: true
+        timeout_seconds: 10
+
+# Task Dependencies
+dependencies:
+  # Define task dependencies
+  dependency_graph:
+    validate_document: []  # No dependencies
+    enqueue_document: ["validate_document"]
+    sanitize_input: ["enqueue_document"]
+    filter_content: ["sanitize_input"]
+    extract_data: ["filter_content"]
+    validate_schema: ["extract_data"]
+    create_version: ["validate_schema"]
+    publish_output: ["create_version"]
+
+  # Dependency resolution
+  resolution:
+    strict: true  # Fail if dependency not met
+    wait_for_dependencies: true
+    max_wait_seconds: 300
+
+# Error Handling
+error_handling:
+  # Retry configuration (per stage)
+  retry:
+    ingestion:
+      max_attempts: 3
+      backoff: "exponential"
+      base_delay_seconds: 1.0
+
+    preprocessing:
+      max_attempts: 2
+      backoff: "linear"
+      base_delay_seconds: 0.5
+
+    processing:
+      max_attempts: 3
+      backoff: "exponential"
+      base_delay_seconds: 2.0
+
+    postprocessing:
+      max_attempts: 2
+      backoff: "linear"
+      base_delay_seconds: 1.0
+
+  # Rollback configuration
+  rollback:
+    enabled: true
+
+    # Rollback triggers
+    triggers:
+      - "validation_failure"
+      - "processing_error"
+      - "timeout"
+
+    # Rollback strategy
+    strategy: "automatic"  # Options: automatic, manual, disabled
+
+    # Rollback actions
+    actions:
+      on_validation_failure: "revert_to_last_version"
+      on_processing_error: "mark_failed"
+      on_timeout: "retry_with_smaller_chunks"
+
+# Task Execution Context
+execution_context:
+  # Shared state across tasks
+  shared_state:
+    enabled: true
+    backend: "memory"  # Options: memory, redis, file
+
+  # Task isolation
+  isolation:
+    level: "process"  # Options: thread, process, container
+    resource_limits:
+      max_memory_mb: 512
+      max_cpu_percent: 50
+
+  # Environment variables
+  environment:
+    LOG_LEVEL: "INFO"
+    ENABLE_DEBUG: "false"
+
+# Progress Tracking
+progress_tracking:
+  enabled: true
+
+  # Progress calculation
+  calculation:
+    method: "task_completion"  # Options: task_completion, weighted, estimated
+
+    # Weighted progress (different weights for different stages)
+    weighted:
+      ingestion: 0.1
+      preprocessing: 0.1
+      processing: 0.6   # Processing is the bulk of work
+      postprocessing: 0.2
+
+  # Progress reporting
+  reporting:
+    interval_seconds: 10
+    include_subtasks: true
+    calculate_eta: true
+
+# Status Tracking (per L208:301-329)
+status_tracking:
+  class: "pipeline.status_tracker.StatusTracker"
+
+  # Status updates
+  updates:
+    enabled: true
+    granularity: "task"  # Options: task, stage, pipeline
+
+  # State transitions
+  states:
+    - "PENDING"
+    - "IN_PROGRESS"
+    - "COMPLETED"
+    - "FAILED"
+    - "CANCELLED"
+
+  # Persistence
+  persistence:
+    enabled: true
+    backend: "file"  # Options: file, database, redis
+    path: ".aget/pipeline_status"
+
+# Result Aggregation
+result_aggregation:
+  # Aggregation strategy for decomposed tasks
+  strategy: "merge"  # Options: merge, concatenate, first, last
+
+  # Merge strategy (for chunked documents)
+  merge:
+    method: "semantic"  # Options: semantic, sequential, weighted
+
+    # Conflict resolution
+    conflicts:
+      resolution: "latest"  # Options: latest, first, merge, manual
+
+    # Validation
+    validate_merged: true
+    consistency_check: true
+
+# Pipeline Optimization
+optimization:
+  # Task parallelization
+  parallelization:
+    enabled: true
+    auto_detect_parallelizable: true
+
+    # Parallelization limits
+    max_parallel_tasks: 5
+    min_task_duration_for_parallel_seconds: 5
+
+  # Task batching
+  batching:
+    enabled: true
+    batch_size: 10
+    max_wait_time_seconds: 30
+
+  # Resource allocation
+  resource_allocation:
+    strategy: "dynamic"  # Options: static, dynamic, adaptive
+    balance: "throughput"  # Options: throughput, latency, cost
+
+# Integration with PipelineRunner
+pipeline_runner:
+  class: "pipeline.pipeline_runner.PipelineRunner"
+
+  # Configuration
+  config:
+    enable_decomposition: true
+    max_parallel_tasks: 5
+    enable_progress_tracking: true
+
+# Usage Example:
+#
+# from pipeline.pipeline_runner import PipelineRunner
+# from pipeline.task_decomposer import TaskDecomposer
+# import yaml
+#
+# # Load config
+# with open('configs/orchestration.yaml') as f:
+#     config = yaml.safe_load(f)
+#
+# # Create pipeline runner
+# runner = PipelineRunner(
+#     enable_decomposition=True,
+#     max_parallel_tasks=config['orchestration']['parallel']['max_concurrent_tasks'],
+#     enable_progress_tracking=True
+# )
+#
+# # Define processing pipeline
+# pipeline = {
+#     'stages': config['pipeline_stages'],
+#     'dependencies': config['dependencies']['dependency_graph']
+# }
+#
+# # Execute pipeline
+# result = runner.run(
+#     document=large_document,
+#     pipeline=pipeline,
+#     decompose=True  # Auto-decompose if needed
+# )
+#
+# # Check progress
+# progress = runner.get_progress(result.task_id)
+# print(f"Progress: {progress['percent_complete']:.1%}")
+# print(f"Completed: {progress['completed']}/{progress['total']} tasks")
+# print(f"ETA: {progress['estimated_completion_time']}")
+#
+# # Get final result
+# if result.status == "COMPLETED":
+#     print(f"Extraction complete: {result.data}")
+# else:
+#     print(f"Failed: {result.error}")

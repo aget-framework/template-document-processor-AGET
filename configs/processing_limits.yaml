@@ -1,0 +1,286 @@
+# Processing Limits Configuration
+#
+# Defines resource limits and safety boundaries for document processing.
+# Referenced by: security_policy.yaml, pipeline configuration
+# Implements: src/security/resource_limiter.py
+
+version: "1.0"
+metadata:
+  description: "Resource limits and safety boundaries for document processing"
+  based_on: "L208 lines 330-359 (Resource Management)"
+  updated: "2025-10-26"
+
+# Document Size Limits
+document_limits:
+  # Input document size
+  input:
+    max_size_bytes: 10485760      # 10 MB maximum
+    max_size_chars: 500000        # 500k characters
+    max_size_tokens: 100000       # ~100k tokens (rough estimate)
+
+    # Per-format limits
+    formats:
+      pdf:
+        max_size_bytes: 10485760  # 10 MB
+        max_pages: 500
+      docx:
+        max_size_bytes: 5242880   # 5 MB
+        max_pages: 300
+      txt:
+        max_size_bytes: 5242880   # 5 MB
+        max_lines: 100000
+      html:
+        max_size_bytes: 5242880   # 5 MB
+        max_elements: 50000
+
+  # Output size limits
+  output:
+    max_size_bytes: 5242880       # 5 MB
+    max_fields: 1000              # Maximum extractable fields
+    max_nesting_depth: 10         # For nested JSON structures
+
+# Processing Time Limits
+time_limits:
+  # Per-document timeouts
+  document:
+    extraction_timeout_seconds: 60
+    validation_timeout_seconds: 30
+    total_processing_timeout_seconds: 120
+
+  # Batch processing timeouts
+  batch:
+    max_batch_duration_seconds: 3600  # 1 hour for entire batch
+    per_document_timeout_seconds: 120
+    queue_wait_timeout_seconds: 300
+
+  # LLM request timeouts
+  llm:
+    request_timeout_seconds: 60
+    retry_timeout_seconds: 180  # Total time including retries
+
+# Concurrency Limits
+concurrency:
+  # Batch processing
+  batch:
+    max_concurrent_documents: 10
+    max_workers: 4
+    queue_size: 100
+
+  # LLM requests
+  llm:
+    max_concurrent_requests: 5
+    max_requests_per_second: 10
+    burst_limit: 20  # Temporary burst allowance
+
+  # Database/storage
+  storage:
+    max_concurrent_writes: 10
+    max_concurrent_reads: 20
+
+# Memory Limits
+memory:
+  # Per-process limits
+  process:
+    max_memory_mb: 2048           # 2 GB per process
+    warning_threshold_mb: 1638    # Warn at 80%
+    oom_killer_enabled: true
+
+  # Per-document limits
+  document:
+    max_memory_mb: 512            # 512 MB per document
+    cache_size_mb: 256
+
+  # Batch processing
+  batch:
+    max_total_memory_mb: 4096     # 4 GB for entire batch
+
+# Rate Limits (per L208:330-359)
+rate_limits:
+  # API rate limits
+  api:
+    # OpenAI
+    openai:
+      requests_per_minute: 500
+      tokens_per_minute: 150000
+      requests_per_day: 10000
+
+    # Anthropic
+    anthropic:
+      requests_per_minute: 50
+      tokens_per_minute: 40000
+      requests_per_day: 5000
+
+  # Internal rate limits
+  internal:
+    # Queue ingestion
+    ingestion:
+      documents_per_minute: 100
+      documents_per_hour: 5000
+
+    # Processing
+    processing:
+      documents_per_minute: 50
+      documents_per_hour: 2000
+
+    # Publishing
+    publishing:
+      documents_per_minute: 100
+      documents_per_hour: 5000
+
+# Resource Quotas
+quotas:
+  # Per-user quotas (if multi-tenant)
+  user:
+    daily_documents: 1000
+    daily_api_calls: 5000
+    daily_cost_usd: 50.0
+
+  # Per-project quotas
+  project:
+    monthly_documents: 50000
+    monthly_api_calls: 100000
+    monthly_cost_usd: 1000.0
+
+  # Storage quotas
+  storage:
+    max_versions_per_document: 10
+    max_documents_total: 100000
+    max_storage_gb: 100
+
+# Circuit Breaker Configuration (per L208:268-282)
+circuit_breaker:
+  enabled: true
+
+  # Failure thresholds
+  thresholds:
+    failure_rate: 0.5            # Open circuit at 50% failure rate
+    min_requests: 10             # Minimum requests before checking rate
+    timeout_seconds: 5
+
+  # State transitions
+  states:
+    open_duration_seconds: 60    # How long circuit stays open
+    half_open_requests: 3        # Test requests in half-open state
+
+  # Recovery
+  recovery:
+    reset_timeout_seconds: 300   # Time before attempting recovery
+    exponential_backoff: true
+
+# Throttling Configuration
+throttling:
+  enabled: true
+
+  # Strategies
+  strategy: "token_bucket"  # Options: token_bucket, leaky_bucket, fixed_window
+
+  # Token bucket parameters
+  token_bucket:
+    capacity: 100              # Bucket size
+    refill_rate: 10            # Tokens per second
+    initial_tokens: 50
+
+  # Back-pressure handling
+  backpressure:
+    enabled: true
+    queue_high_watermark: 80   # Percentage
+    queue_low_watermark: 20
+    action_on_high: "slow_down"  # Options: slow_down, reject, queue
+
+# Error Budget (Site Reliability Engineering)
+error_budget:
+  enabled: false  # Enable for production
+
+  # SLO targets
+  slo:
+    availability: 0.999        # 99.9% uptime
+    success_rate: 0.99         # 99% success rate
+    latency_p99_ms: 5000       # 99th percentile < 5s
+
+  # Budget tracking
+  tracking:
+    window_days: 30
+    alert_on_exhaustion: true
+
+# Resource Monitoring
+monitoring:
+  enabled: true
+
+  # Metrics collection
+  collect:
+    - "cpu_usage"
+    - "memory_usage"
+    - "disk_usage"
+    - "network_bandwidth"
+    - "api_quota_usage"
+    - "error_rate"
+    - "latency"
+
+  # Alert thresholds
+  alerts:
+    cpu_usage_percent: 80
+    memory_usage_percent: 85
+    disk_usage_percent: 90
+    error_rate_percent: 10
+    api_quota_percent: 90
+
+  # Collection frequency
+  collection_interval_seconds: 60
+
+# Safety Mechanisms
+safety:
+  # Input sanitization
+  sanitization:
+    max_input_length: 50000    # From InputSanitizer
+    enable_html_escape: true
+    enable_special_token_removal: true
+
+  # Content filtering
+  filtering:
+    enable_pii_detection: true
+    enable_sensitive_data_redaction: true
+    redaction_format: "[REDACTED:{type}]"
+
+  # Rollback capability
+  rollback:
+    enable_automatic_rollback: false
+    rollback_on_error_rate: 0.5
+    keep_versions: 10
+
+# Integration with ResourceLimiter
+resource_limiter:
+  class: "security.resource_limiter.ResourceLimiter"
+
+  # Configuration mapping
+  config:
+    max_concurrent_requests: "${concurrency.llm.max_concurrent_requests}"
+    max_memory_mb: "${memory.process.max_memory_mb}"
+    max_processing_time_seconds: "${time_limits.document.total_processing_timeout_seconds}"
+
+# Usage Example:
+#
+# from security.resource_limiter import ResourceLimiter
+# import yaml
+#
+# # Load config
+# with open('configs/processing_limits.yaml') as f:
+#     config = yaml.safe_load(f)
+#
+# # Create resource limiter
+# limiter = ResourceLimiter(
+#     max_concurrent_requests=config['concurrency']['llm']['max_concurrent_requests'],
+#     max_memory_mb=config['memory']['process']['max_memory_mb'],
+#     max_processing_time_seconds=config['time_limits']['document']['total_processing_timeout_seconds']
+# )
+#
+# # Check if request is allowed
+# if limiter.can_process():
+#     # Process document
+#     with limiter.acquire():
+#         process_document(doc)
+# else:
+#     print("Resource limit exceeded")
+#
+# # Monitor resource usage
+# stats = limiter.get_stats()
+# print(f"Current usage: {stats['current_requests']} / {stats['max_requests']}")

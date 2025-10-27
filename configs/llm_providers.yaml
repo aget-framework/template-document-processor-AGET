@@ -1,0 +1,242 @@
+# LLM Provider Configuration
+#
+# Defines available LLM providers and their configurations for document processing.
+# Referenced by: model_routing.yaml, caching.yaml
+# Implements: src/processing/llm_provider.py
+
+version: "1.0"
+metadata:
+  description: "LLM provider configuration for document processing pipeline"
+  based_on: "L208 lines 163-199 (LLM Processing Architecture)"
+  updated: "2025-10-26"
+
+# Provider Definitions
+# Each provider must implement BaseLLMProvider interface
+providers:
+  # OpenAI Provider Configuration
+  openai:
+    class: "processing.llm_provider.OpenAIProvider"
+    enabled: true
+    priority: 1  # Higher priority = preferred for routing
+
+    # API Configuration
+    api:
+      base_url: "https://api.openai.com/v1"
+      api_key_env: "OPENAI_API_KEY"  # Environment variable name
+      timeout_seconds: 60
+      max_retries: 3
+
+    # Available Models
+    models:
+      gpt-4o-2024-08-06:
+        max_tokens: 128000
+        temperature_default: 0.0  # Deterministic for document processing
+        supports_structured_output: true
+        cost_per_1k_tokens:
+          input: 0.0025
+          output: 0.01
+        rate_limit:
+          requests_per_minute: 500
+          tokens_per_minute: 150000
+
+      gpt-4o-mini:
+        max_tokens: 128000
+        temperature_default: 0.0
+        supports_structured_output: true
+        cost_per_1k_tokens:
+          input: 0.00015
+          output: 0.0006
+        rate_limit:
+          requests_per_minute: 500
+          tokens_per_minute: 200000
+
+      gpt-3.5-turbo:
+        max_tokens: 16385
+        temperature_default: 0.0
+        supports_structured_output: false
+        cost_per_1k_tokens:
+          input: 0.0005
+          output: 0.0015
+        rate_limit:
+          requests_per_minute: 500
+          tokens_per_minute: 90000
+
+    # Default Settings
+    defaults:
+      model: "gpt-4o-2024-08-06"
+      temperature: 0.0
+      seed: 42  # For reproducibility per L208:207-227
+      max_tokens: null  # Use model default
+      top_p: 1.0
+
+  # Anthropic Provider Configuration
+  anthropic:
+    class: "processing.llm_provider.AnthropicProvider"
+    enabled: true
+    priority: 2
+
+    # API Configuration
+    api:
+      base_url: "https://api.anthropic.com/v1"
+      api_key_env: "ANTHROPIC_API_KEY"
+      timeout_seconds: 60
+      max_retries: 3
+
+    # Available Models
+    models:
+      claude-3-5-sonnet-20241022:
+        max_tokens: 200000
+        temperature_default: 0.0
+        supports_structured_output: true
+        cost_per_1k_tokens:
+          input: 0.003
+          output: 0.015
+        rate_limit:
+          requests_per_minute: 50
+          tokens_per_minute: 40000
+
+      claude-3-opus-20240229:
+        max_tokens: 200000
+        temperature_default: 0.0
+        supports_structured_output: true
+        cost_per_1k_tokens:
+          input: 0.015
+          output: 0.075
+        rate_limit:
+          requests_per_minute: 50
+          tokens_per_minute: 40000
+
+      claude-3-haiku-20240307:
+        max_tokens: 200000
+        temperature_default: 0.0
+        supports_structured_output: true
+        cost_per_1k_tokens:
+          input: 0.00025
+          output: 0.00125
+        rate_limit:
+          requests_per_minute: 50
+          tokens_per_minute: 50000
+
+    # Default Settings
+    defaults:
+      model: "claude-3-5-sonnet-20241022"
+      temperature: 0.0
+      max_tokens: 4096
+      top_p: 1.0
+
+  # Mock Provider (for testing)
+  mock:
+    class: "processing.llm_provider.MockLLMProvider"
+    enabled: true
+    priority: 0  # Lowest priority - only used when explicitly requested
+
+    # Mock Configuration
+    mock_response: "Mock LLM response for testing"
+    latency_ms: 100  # Simulated latency
+
+    # Default Settings
+    defaults:
+      model: "mock-model"
+      temperature: 0.0
+
+# Provider Selection Strategy
+# Used by ModelRouter when multiple providers available
+selection:
+  strategy: "priority"  # Options: priority, cost, latency, round_robin
+  fallback_enabled: true  # If primary fails, try next priority
+
+  # Cost-based routing thresholds (when strategy=cost)
+  cost_thresholds:
+    cheap: 0.001  # Cost per 1k tokens
+    moderate: 0.005
+    expensive: 0.02
+
+  # Latency-based routing (when strategy=latency)
+  latency_targets:
+    fast: 1000  # ms
+    moderate: 3000
+    slow: 10000
+
+# Retry Configuration (per L208:268-282)
+# Applies to all providers unless overridden
+retry:
+  max_attempts: 3
+  base_delay_seconds: 1.0
+  max_delay_seconds: 60.0
+  exponential_base: 2.0
+  jitter: true
+
+  # Retryable errors (per API spec RetryHandler)
+  retryable_errors:
+    - "RATE_LIMIT"
+    - "TIMEOUT"
+    - "NETWORK_ERROR"
+    - "SERVICE_UNAVAILABLE"
+    - "UNKNOWN"
+
+# Cache Configuration (per L208:283-300)
+# Applies to all providers
+cache:
+  enabled: true
+  backend: "simple"  # Options: simple, redis, memcached
+  ttl_seconds: 3600  # 1 hour default
+  max_entries: 10000
+
+  # Cache key generation
+  include_in_key:
+    - "model"
+    - "prompt"
+    - "temperature"
+    - "seed"
+
+  # Cache invalidation
+  invalidate_on:
+    - "model_update"
+    - "prompt_version_change"
+
+# Observability (per L208:301-329)
+observability:
+  logging:
+    level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+    include_prompts: false  # Security: don't log sensitive data
+    include_responses: false
+
+  metrics:
+    enabled: true
+    export_format: "prometheus"  # Options: prometheus, statsd, datadog
+
+    # Metrics to collect
+    collect:
+      - "request_count"
+      - "request_latency"
+      - "token_usage"
+      - "cost"
+      - "error_rate"
+      - "cache_hit_rate"
+
+  tracing:
+    enabled: false  # Set true for distributed tracing
+    backend: null  # Options: jaeger, zipkin, datadog
+
+# Usage Example:
+#
+# from processing.llm_provider import OpenAIProvider
+# import yaml
+#
+# # Load config
+# with open('configs/llm_providers.yaml') as f:
+#     config = yaml.safe_load(f)
+#
+# # Initialize provider
+# provider_config = config['providers']['openai']
+# provider = OpenAIProvider(
+#     api_key=os.getenv(provider_config['api']['api_key_env']),
+#     model=provider_config['defaults']['model']
+# )
+#
+# # Process request
+# response = provider.complete(
+#     prompt="Extract data from document",
+#     temperature=provider_config['defaults']['temperature'],
+#     seed=provider_config['defaults']['seed']
+# )

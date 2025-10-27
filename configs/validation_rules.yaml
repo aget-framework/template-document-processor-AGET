@@ -1,0 +1,266 @@
+# Validation Rules Configuration
+#
+# Defines validation rules for document processing pipeline.
+# Referenced by: security_policy.yaml, processing workflows
+# Implements: src/ingestion/validator.py
+
+version: "1.0"
+metadata:
+  description: "Input validation rules for document processing"
+  based_on: "L208 lines 247-251 (Validation Pipeline Architecture)"
+  updated: "2025-10-26"
+
+# File Validation Rules
+# Applied before documents enter processing pipeline
+file_validation:
+  # File Existence and Readability
+  existence:
+    rule_class: "ingestion.validator.FileExistsValidator"
+    enabled: true
+    severity: "critical"  # critical, high, medium, low
+    description: "Verify file exists and is readable"
+
+    # Configuration
+    check_permissions: true
+    check_readability: true
+    sample_bytes: 1024  # Read first 1KB to verify
+
+  # File Size Validation
+  size:
+    rule_class: "ingestion.validator.FileSizeValidator"
+    enabled: true
+    severity: "high"
+
+    # Size Limits (in bytes)
+    max_bytes: 10485760  # 10 MB default
+    warn_bytes: 8388608  # 8 MB warning threshold (80%)
+
+    # Size-based routing
+    routing:
+      small: 1048576     # < 1 MB - fast processing
+      medium: 5242880    # 1-5 MB - standard processing
+      large: 10485760    # 5-10 MB - chunked processing
+      oversized: null    # > 10 MB - reject
+
+    description: "Enforce file size limits per L208:247-251"
+
+  # File Format Validation
+  format:
+    rule_class: "ingestion.validator.FileFormatValidator"
+    enabled: true
+    severity: "critical"
+
+    # Allowed Extensions
+    allowed_extensions:
+      - ".txt"
+      - ".md"
+      - ".pdf"
+      - ".docx"
+      - ".html"
+      - ".xml"
+      - ".json"
+
+    # MIME Type Validation (optional but recommended)
+    allowed_mimetypes:
+      - "text/plain"
+      - "text/markdown"
+      - "application/pdf"
+      - "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      - "text/html"
+      - "application/xml"
+      - "text/xml"
+      - "application/json"
+
+    # Strict mode: Reject files with mismatched extension/MIME type
+    strict_mode: true
+
+    description: "Validate file format before processing"
+
+# Content Validation Rules
+# Applied after file read, before LLM processing
+content_validation:
+  # Character Encoding
+  encoding:
+    enabled: true
+    severity: "high"
+
+    # Allowed encodings
+    allowed:
+      - "utf-8"
+      - "utf-16"
+      - "ascii"
+      - "iso-8859-1"
+
+    # Default encoding if detection fails
+    fallback: "utf-8"
+
+    # Reject files with invalid encoding
+    reject_invalid: true
+
+  # Content Length
+  length:
+    enabled: true
+    severity: "medium"
+
+    # Length limits (in characters)
+    min_chars: 10         # Minimum meaningful content
+    max_chars: 500000     # 500k chars (~100k tokens)
+    warn_chars: 400000    # Warning at 400k
+
+    # Empty file handling
+    allow_empty: false
+
+  # Content Structure
+  structure:
+    enabled: true
+    severity: "low"
+
+    # Require minimum structure
+    min_lines: 1
+    min_words: 5
+
+    # Detect and warn on malformed content
+    check_binary_content: true  # Warn if binary data detected in text file
+    check_null_bytes: true      # Warn on null bytes in text
+
+# Schema Validation Rules
+# Applied to extracted data (per L208:230-246)
+schema_validation:
+  # Field Type Validation
+  types:
+    enabled: true
+    strict_mode: true  # Reject if type mismatch
+
+    # Supported types (from FieldType enum)
+    supported:
+      - "STRING"
+      - "NUMBER"
+      - "BOOLEAN"
+      - "ARRAY"
+      - "OBJECT"
+
+  # Required Fields
+  required_fields:
+    enabled: true
+    severity: "high"
+
+    # Behavior when required field missing
+    on_missing: "fail"  # Options: fail, warn, fill_null
+
+  # Field Value Validation
+  values:
+    enabled: true
+
+    # String validation
+    string:
+      min_length: null
+      max_length: 10000
+      pattern: null  # Regex pattern (optional)
+      trim_whitespace: true
+
+    # Number validation
+    number:
+      min_value: null
+      max_value: null
+      integer_only: false
+
+    # Array validation
+    array:
+      min_items: null
+      max_items: 1000  # Prevent memory issues
+      unique_items: false
+
+# Custom Validation Rules
+# Agent-specific validation rules can be added here
+custom_rules:
+  # Example: Domain-specific validation
+  # domain_specific:
+  #   rule_class: "custom.validators.DomainValidator"
+  #   enabled: false
+  #   config:
+  #     domain: "legal"
+  #     required_sections: ["header", "body", "signature"]
+
+# Validation Pipeline Configuration
+pipeline:
+  # Rule execution order
+  execution_order:
+    - "file_validation"
+    - "content_validation"
+    - "schema_validation"
+    - "custom_rules"
+
+  # Failure handling
+  on_failure:
+    mode: "fail_fast"  # Options: fail_fast, collect_all, warn_only
+
+    # Logging
+    log_failures: true
+    log_warnings: true
+
+  # Performance
+  parallel_validation: false  # Validate rules in parallel (if independent)
+  timeout_seconds: 30         # Maximum validation time per document
+
+# Validation Reports
+reporting:
+  # Report format
+  format: "structured"  # Options: structured, summary, verbose
+
+  # Include in report
+  include:
+    errors: true
+    warnings: true
+    metadata: true
+    validation_time: true
+
+  # Report storage
+  save_reports: false
+  report_directory: ".aget/validation_reports"
+
+# Integration Points
+integration:
+  # Queue Manager integration
+  queue:
+    reject_invalid: true  # Don't enqueue invalid documents
+    mark_as_failed: true  # Mark invalid documents as failed
+
+  # Batch Processor integration
+  batch:
+    skip_invalid: true    # Skip invalid in batch processing
+    report_skipped: true
+
+  # Metrics integration
+  metrics:
+    track_validation_rate: true
+    track_failure_reasons: true
+
+# Usage Example:
+#
+# from ingestion.validator import DocumentValidator, FileSizeValidator, FileFormatValidator
+# import yaml
+#
+# # Load config
+# with open('configs/validation_rules.yaml') as f:
+#     config = yaml.safe_load(f)
+#
+# # Create validator with custom rules
+# size_config = config['file_validation']['size']
+# format_config = config['file_validation']['format']
+#
+# validator = DocumentValidator(rules=[
+#     FileSizeValidator(
+#         max_bytes=size_config['max_bytes'],
+#         warn_bytes=size_config['warn_bytes']
+#     ),
+#     FileFormatValidator(
+#         allowed_extensions=format_config['allowed_extensions']
+#     )
+# ])
+#
+# # Validate document
+# result = validator.validate('/path/to/document.pdf')
+# if result.valid:
+#     print("Document is valid")
+# else:
+#     print(f"Validation failed: {result.errors}")

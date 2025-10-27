@@ -1,0 +1,406 @@
+# Security Policy Configuration
+#
+# Defines security policies for document processing pipeline.
+# References: validation_rules.yaml, processing_limits.yaml
+# Implements: src/security/*.py modules
+
+version: "1.0"
+metadata:
+  description: "Security policy for document processing pipeline"
+  based_on: "L208 lines 330-359, 541-548 (Security & Resource Management)"
+  updated: "2025-10-26"
+  dependencies:
+    - "validation_rules.yaml"
+    - "processing_limits.yaml"
+
+# Input Security (per L208:541-548)
+input_security:
+  # Prompt injection prevention
+  prompt_injection:
+    enabled: true
+    class: "security.input_sanitizer.InputSanitizer"
+
+    # Sanitization rules
+    sanitization:
+      max_length: 50000  # From processing_limits.yaml safety.sanitization.max_input_length
+      remove_special_tokens: true
+      escape_html: true
+      normalize_whitespace: true
+
+    # Detection patterns
+    detection:
+      # LLM control tokens
+      control_tokens:
+        enabled: true
+        patterns:
+          - '<\|.*?\|>'  # OpenAI-style tokens
+          - '\[SYSTEM\]'
+          - '\[ASSISTANT\]'
+          - '\[USER\]'
+          - '\[INSTRUCTION\]'
+
+      # Markdown code fence injection
+      code_fences:
+        enabled: true
+        pattern: '```.*?```'
+        action: "remove"  # Options: remove, escape, reject
+
+    # Delimiter-based separation
+    delimiters:
+      enabled: true
+      format: "<USER_CONTENT>\n{content}\n</USER_CONTENT>"
+      validate_closure: true
+
+  # Content filtering (per L208:549-570)
+  content_filtering:
+    enabled: true
+    class: "security.content_filter.ContentFilterPipeline"
+
+    # PII detection and redaction
+    pii:
+      enabled: true
+      redaction_format: "[REDACTED:{type}]"  # From processing_limits.yaml
+
+      # PII patterns
+      patterns:
+        email:
+          pattern: '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+          severity: "critical"
+
+        ssn:
+          pattern: '\b\d{3}-\d{2}-\d{4}\b'
+          severity: "critical"
+
+        phone:
+          pattern: '\b\d{3}[-.]?\d{3}[-.]?\d{4}\b'
+          severity: "high"
+
+        credit_card:
+          pattern: '\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b'
+          severity: "critical"
+
+        ip_address:
+          pattern: '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'
+          severity: "medium"
+
+    # Sensitive content detection
+    sensitive_content:
+      enabled: true
+
+      # Custom patterns (agent-specific)
+      custom_patterns:
+        # Example: API keys
+        # api_key:
+        #   pattern: 'sk-[a-zA-Z0-9]{32,}'
+        #   severity: "critical"
+
+    # Action on detection
+    on_detection:
+      critical: "redact"  # Options: redact, reject, alert
+      high: "redact"
+      medium: "alert"
+      low: "log"
+
+  # File validation (from validation_rules.yaml)
+  file_validation:
+    enabled: true
+    config_ref: "validation_rules.yaml"
+
+    # Enforcement
+    enforce_size_limits: true     # From validation_rules.yaml file_validation.size
+    enforce_format_limits: true   # From validation_rules.yaml file_validation.format
+    enforce_encoding: true        # From validation_rules.yaml content_validation.encoding
+
+# Output Security
+output_security:
+  # Output validation
+  validation:
+    enabled: true
+
+    # Validate LLM outputs don't contain manipulation attempts
+    check_control_tokens: true
+    check_role_injection: true
+    check_prompt_injection: true
+
+    # Action on suspicious output
+    on_suspicious: "reject"  # Options: reject, sanitize, alert
+
+  # Output sanitization
+  sanitization:
+    enabled: true
+
+    # Remove potential injection attempts from output
+    remove_control_tokens: true
+    escape_html: true
+
+  # Data leakage prevention
+  data_leakage:
+    enabled: true
+
+    # Check outputs don't leak sensitive data
+    check_pii_in_output: true
+    check_api_keys: true
+    check_credentials: true
+
+    # Action on leakage detection
+    on_detection: "redact"  # Options: redact, reject, alert
+
+# Access Control
+access_control:
+  # Authentication
+  authentication:
+    enabled: false  # Enable for multi-tenant deployments
+
+    # Methods
+    methods:
+      - "api_key"
+      - "oauth2"
+      - "jwt"
+
+    # API key configuration
+    api_key:
+      header_name: "X-API-Key"
+      env_var: "API_KEY"
+      min_length: 32
+
+  # Authorization
+  authorization:
+    enabled: false
+
+    # Role-based access control (RBAC)
+    rbac:
+      enabled: false
+      roles:
+        admin:
+          permissions: ["read", "write", "delete", "admin"]
+        user:
+          permissions: ["read", "write"]
+        viewer:
+          permissions: ["read"]
+
+    # Resource-level permissions
+    resource_permissions:
+      documents:
+        create: ["admin", "user"]
+        read: ["admin", "user", "viewer"]
+        update: ["admin", "user"]
+        delete: ["admin"]
+
+# Rate Limiting (from processing_limits.yaml)
+rate_limiting:
+  enabled: true
+  config_ref: "processing_limits.yaml rate_limits"
+
+  # Enforcement
+  enforce_api_limits: true
+  enforce_internal_limits: true
+
+  # Action on limit exceeded
+  on_limit_exceeded: "throttle"  # Options: throttle, reject, queue
+
+# Resource Protection (from processing_limits.yaml)
+resource_protection:
+  # Memory limits
+  memory:
+    enforce_limits: true
+    max_memory_mb: 2048  # From processing_limits.yaml memory.process.max_memory_mb
+    oom_killer_enabled: true
+
+  # Processing time limits
+  time:
+    enforce_timeouts: true
+    request_timeout_seconds: 60     # From processing_limits.yaml time_limits.llm.request_timeout_seconds
+    total_timeout_seconds: 120      # From processing_limits.yaml time_limits.document.total_processing_timeout_seconds
+
+  # Concurrency limits
+  concurrency:
+    max_concurrent_requests: 5      # From processing_limits.yaml concurrency.llm.max_concurrent_requests
+    max_workers: 4                  # From processing_limits.yaml concurrency.batch.max_workers
+
+# Audit Logging
+audit:
+  enabled: true
+
+  # Events to log
+  events:
+    - "authentication_attempt"
+    - "authorization_failure"
+    - "input_sanitization"
+    - "content_filtering"
+    - "pii_detection"
+    - "rate_limit_exceeded"
+    - "resource_limit_exceeded"
+    - "suspicious_activity"
+
+  # Log format
+  format: "json"  # Options: json, text, syslog
+
+  # Log storage
+  storage:
+    type: "file"  # Options: file, syslog, cloudwatch, elasticsearch
+    path: ".aget/logs/audit.log"
+    rotation: "daily"
+    retention_days: 90
+
+  # Sensitive data handling in logs
+  sanitize_logs: true
+  redact_pii: true
+
+# Encryption
+encryption:
+  # Data at rest
+  at_rest:
+    enabled: false  # Enable for production
+
+    # Encryption algorithm
+    algorithm: "AES-256-GCM"
+    key_source: "env"  # Options: env, file, kms
+    key_env_var: "ENCRYPTION_KEY"
+
+  # Data in transit
+  in_transit:
+    enabled: true
+
+    # TLS configuration
+    tls:
+      min_version: "1.2"
+      cipher_suites:
+        - "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+        - "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+
+# Compliance
+compliance:
+  # Regulatory frameworks
+  frameworks:
+    gdpr:
+      enabled: false
+      data_retention_days: 365
+      right_to_erasure: true
+      data_portability: true
+
+    hipaa:
+      enabled: false
+      audit_logging: true
+      encryption_required: true
+
+    pci_dss:
+      enabled: false
+      tokenization: true
+      encryption: true
+
+  # Data handling policies
+  data_handling:
+    # Data retention
+    retention:
+      default_days: 90
+      minimum_days: 30
+      maximum_days: 365
+
+    # Data deletion
+    deletion:
+      secure_deletion: true
+      verification: true
+
+# Incident Response
+incident_response:
+  # Automated responses
+  automated:
+    enabled: true
+
+    # Response actions
+    on_security_event:
+      critical:
+        - "alert_admin"
+        - "block_request"
+        - "log_incident"
+      high:
+        - "alert_admin"
+        - "log_incident"
+      medium:
+        - "log_incident"
+
+  # Manual response procedures
+  manual:
+    escalation_email: "security@example.com"
+    incident_report_required: true
+
+# Security Monitoring
+monitoring:
+  # Real-time monitoring
+  realtime:
+    enabled: true
+
+    # Metrics to monitor
+    metrics:
+      - "failed_authentication_rate"
+      - "pii_detection_rate"
+      - "rate_limit_violations"
+      - "suspicious_pattern_matches"
+
+  # Alerts
+  alerts:
+    # Alert thresholds
+    thresholds:
+      failed_auth_per_minute: 10
+      pii_detections_per_hour: 50
+      rate_limit_violations_per_minute: 5
+
+    # Alert channels
+    channels:
+      - "email"
+      - "slack"
+      - "pagerduty"
+
+# Integration Points
+integration:
+  # Input sanitizer
+  input_sanitizer:
+    class: "security.input_sanitizer.InputSanitizer"
+    enabled: true
+
+  # Content filter
+  content_filter:
+    class: "security.content_filter.ContentFilterPipeline"
+    enabled: true
+
+  # Resource limiter
+  resource_limiter:
+    class: "security.resource_limiter.ResourceLimiter"
+    enabled: true
+
+# Usage Example:
+#
+# from security.input_sanitizer import InputSanitizer
+# from security.content_filter import ContentFilterPipeline
+# import yaml
+#
+# # Load config
+# with open('configs/security_policy.yaml') as f:
+#     config = yaml.safe_load(f)
+#
+# # Initialize security components
+# sanitizer_config = config['input_security']['prompt_injection']['sanitization']
+# sanitizer = InputSanitizer(max_length=sanitizer_config['max_length'])
+#
+# filter_config = config['input_security']['content_filtering']
+# content_filter = ContentFilterPipeline()
+#
+# # Process document with security
+# # 1. Sanitize input
+# sanitized_doc = sanitizer.sanitize(raw_document)
+#
+# # 2. Filter sensitive content
+# passed, matches = content_filter.scan(sanitized_doc)
+# if not passed:
+#     print(f"Security violation: {matches}")
+#
+# # 3. Build safe prompt
+# safe_prompt = sanitizer.build_safe_prompt(
+#     system_instruction="Extract data",
+#     user_content=sanitized_doc
+# )
+#
+# # 4. Validate output
+# llm_response = llm_provider.complete(safe_prompt)
+# if not InputSanitizer.validate_output(llm_response):
+#     print("Suspicious LLM output detected")
