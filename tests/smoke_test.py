@@ -186,8 +186,11 @@ def test_gate_2a_processing_cache_manager():
         assert cached == "response text"
 
         # Test checkpoint manager
-        checkpoint_mgr = CheckpointManager(checkpoint_dir=tmpdir)
-        checkpoint_mgr.create_checkpoint("doc1", {"stage": "processing"}, {"data": "test"})
+        checkpoint_file = f"{tmpdir}/processing.json"
+        checkpoint_mgr = CheckpointManager(checkpoint_file=checkpoint_file)
+        checkpoint_mgr.mark_complete("doc1")
+        assert checkpoint_mgr.is_complete("doc1")
+        assert checkpoint_mgr.get_completed_count() == 1
 
         print("✅ cache_manager.py: Caching and checkpointing successful")
 
