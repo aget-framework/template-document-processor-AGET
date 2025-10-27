@@ -1,0 +1,445 @@
+# Output Format Specification
+#
+# Formal specification for output document format, versioning, and publishing.
+# Based on: L208 lines 200-227 (Idempotence & Reproducibility - Version Management)
+# Format: EARS (Easy Approach to Requirements Syntax)
+
+version: "1.0"
+status: "approved"
+last_updated: "2025-10-26"
+owner: "template-document-processor-AGET"
+
+metadata:
+  description: "Defines requirements for output documents, versioning, and publishing"
+  references:
+    - "src/output/version_manager.py"
+    - "src/output/publisher.py"
+    - "L208 lines 200-227"
+
+  scope:
+    - "Version management"
+    - "Output formatting"
+    - "Publishing destinations"
+    - "Metadata requirements"
+
+# =============================================================================
+# VERSION MANAGEMENT REQUIREMENTS
+# =============================================================================
+
+version_management:
+  # VM-001: Version Creation
+  VM_001:
+    requirement: "WHEN a document is processed, the system SHALL create a new DocumentVersion with unique version_id"
+    pattern: "event-driven"
+    rationale: "Enable version history tracking and rollback capability"
+    validation: "VersionManager.create_version() returns DocumentVersion with unique ID"
+    priority: "critical"
+
+  # VM-002: Sequential Version Numbering
+  VM_002:
+    requirement: "The system SHALL assign sequential version numbers (1, 2, 3, ...) to each DocumentVersion for the same document_id"
+    pattern: "ubiquitous"
+    rationale: "Provide human-readable version ordering"
+    validation: "DocumentVersion.number increments per document"
+    priority: "high"
+
+  # VM-003: Version ID Format
+  VM_003:
+    requirement: "The system SHALL generate version IDs using format: {document_id}_v{timestamp}_{hash}"
+    pattern: "ubiquitous"
+    rationale: "Ensure globally unique, sortable, collision-resistant version IDs"
+    validation: "VersionManager._generate_version_id() follows format"
+    priority: "medium"
+
+  # VM-004: Content Hashing
+  VM_004:
+    requirement: "The system SHALL calculate SHA-256 hash of content for each version"
+    pattern: "ubiquitous"
+    rationale: "Enable content change detection and duplicate identification"
+    validation: "DocumentVersion.content_hash populated via _hash_content()"
+    priority: "high"
+
+  # VM-005: Timestamp Recording
+  VM_005:
+    requirement: "The system SHALL record Unix timestamp for each version creation"
+    pattern: "ubiquitous"
+    rationale: "Enable temporal ordering and audit trail"
+    validation: "DocumentVersion.timestamp populated with time.time()"
+    priority: "high"
+
+  # VM-006: Processing Metadata
+  VM_006:
+    requirement: "The system SHALL store processing metadata including: model, prompt_version, temperature, seed, cost_usd, latency_ms"
+    pattern: "ubiquitous"
+    rationale: "Enable reproducibility and cost tracking per L208:207-227"
+    validation: "DocumentVersion.processing_metadata contains required fields"
+    priority: "high"
+
+  # VM-007: Parent Version Linking
+  VM_007:
+    requirement: "WHEN a document is reprocessed, the system SHALL link new version to parent via parent_version_id"
+    pattern: "event-driven"
+    rationale: "Track version lineage and reprocessing history"
+    validation: "DocumentVersion.parent_version_id set when provided"
+    priority: "medium"
+
+  # VM-008: Version Persistence
+  VM_008:
+    requirement: "The system SHALL persist each version to filesystem as JSON file"
+    pattern: "ubiquitous"
+    rationale: "Enable version retrieval and audit"
+    validation: "VersionManager._save_version() writes {version_id}.json"
+    priority: "critical"
+
+  # VM-009: Version Index Maintenance
+  VM_009:
+    requirement: "The system SHALL maintain index mapping document_id to list of version_ids"
+    pattern: "ubiquitous"
+    rationale: "Enable fast version history retrieval"
+    validation: "VersionManager._index updated and persisted to _index.json"
+    priority: "high"
+
+  # VM-010: Latest Version Retrieval
+  VM_010:
+    requirement: "The system SHALL provide method to retrieve latest version of a document"
+    pattern: "ubiquitous"
+    rationale: "Support common use case of accessing current state"
+    validation: "VersionManager.get_latest_version() returns most recent version"
+    priority: "high"
+
+  # VM-011: Version History Retrieval
+  VM_011:
+    requirement: "The system SHALL provide method to retrieve all versions of a document, sorted by timestamp"
+    pattern: "ubiquitous"
+    rationale: "Enable version comparison and audit"
+    validation: "VersionManager.get_version_history() returns sorted list"
+    priority: "medium"
+
+  # VM-012: Version Comparison
+  VM_012:
+    requirement: "The system SHALL provide method to compare two versions showing: content_changed, time_diff_seconds, metadata differences"
+    pattern: "ubiquitous"
+    rationale: "Enable change analysis and debugging"
+    validation: "VersionManager.compare_versions() returns comparison dict"
+    priority: "low"
+
+  # VM-013: Version Deletion
+  VM_013:
+    requirement: "The system SHALL support deletion of specific versions while maintaining index consistency"
+    pattern: "ubiquitous"
+    rationale: "Enable version cleanup and storage management"
+    validation: "VersionManager.delete_version() removes file and updates index"
+    priority: "low"
+
+# =============================================================================
+# OUTPUT FORMAT REQUIREMENTS
+# =============================================================================
+
+output_format:
+  # OF-001: DocumentVersion Structure
+  OF_001:
+    requirement: "The system SHALL represent versions with fields: version_id, document_id, number, content, timestamp, processing_metadata, content_hash, parent_version_id"
+    pattern: "ubiquitous"
+    rationale: "Standardize version representation"
+    validation: "DocumentVersion dataclass structure"
+    priority: "critical"
+
+  # OF-002: JSON Serialization
+  OF_002:
+    requirement: "The system SHALL serialize DocumentVersion to JSON with 2-space indentation"
+    pattern: "ubiquitous"
+    rationale: "Enable human-readable storage and API integration"
+    validation: "DocumentVersion.to_dict() + json.dump(indent=2)"
+    priority: "high"
+
+  # OF-003: Content Type Flexibility
+  OF_003:
+    requirement: "The system SHALL support content field containing: Dict, List, String, or Any JSON-serializable type"
+    pattern: "ubiquitous"
+    rationale: "Accommodate different extraction outputs (structured, unstructured)"
+    validation: "DocumentVersion.content typed as Any"
+    priority: "high"
+
+  # OF-004: Metadata Completeness
+  OF_004:
+    requirement: "The system SHALL include in processing_metadata: timestamp, prompt_version, model, temperature, seed, cost_usd, latency_ms"
+    pattern: "ubiquitous"
+    rationale: "Enable reproducibility per L208:207-227"
+    validation: "Processing metadata dictionary structure"
+    priority: "high"
+
+# =============================================================================
+# PUBLISHING REQUIREMENTS
+# =============================================================================
+
+publishing:
+  # PB-001: Multi-Destination Support
+  PB_001:
+    requirement: "The system SHALL support publishing to multiple destinations simultaneously"
+    pattern: "ubiquitous"
+    rationale: "Enable parallel output to filesystem, API, database, etc."
+    validation: "Publisher.publish() iterates all configured publishers"
+    priority: "high"
+
+  # PB-002: Publisher Strategy Pattern
+  PB_002:
+    requirement: "The system SHALL implement publishers as BasePublisher subclasses"
+    pattern: "ubiquitous"
+    rationale: "Enable extensibility for agent-specific destinations"
+    validation: "BasePublisher base class + FilesystemPublisher, APIPublisher"
+    priority: "medium"
+
+  # PB-003: Filesystem Publishing
+  PB_003:
+    requirement: "The system SHALL provide FilesystemPublisher for writing documents to output directory"
+    pattern: "ubiquitous"
+    rationale: "Support common use case of local file output"
+    validation: "FilesystemPublisher.publish() writes to configured directory"
+    priority: "high"
+
+  # PB-004: JSON Output Format
+  PB_004:
+    requirement: "WHEN publishing to filesystem with JSON format, the system SHALL include: document_id, content, metadata"
+    pattern: "event-driven"
+    rationale: "Standardize JSON output structure"
+    validation: "FilesystemPublisher writes {document_id, content, metadata}"
+    priority: "high"
+
+  # PB-005: Output File Naming
+  PB_005:
+    requirement: "The system SHALL name output files using format: {document_id}.{format}"
+    pattern: "ubiquitous"
+    rationale: "Enable predictable file location"
+    validation: "FilesystemPublisher generates filename from document_id and format"
+    priority: "medium"
+
+  # PB-006: API Publishing (Stub)
+  PB_006:
+    requirement: "The system SHALL provide APIPublisher stub for external API integration"
+    pattern: "ubiquitous"
+    rationale: "Enable production API integration via configuration"
+    validation: "APIPublisher.publish() returns simulated success"
+    priority: "low"
+    notes: "Production implementation should replace stub with actual HTTP calls"
+
+  # PB-007: Publish Result Tracking
+  PB_007:
+    requirement: "WHEN publishing completes, the system SHALL return PublishResult with: success, destination, document_id, publish_path, error_message, metadata"
+    pattern: "event-driven"
+    rationale: "Enable publish outcome tracking and error handling"
+    validation: "PublishResult dataclass populated for each publish attempt"
+    priority: "high"
+
+  # PB-008: Batch Publishing
+  PB_008:
+    requirement: "The system SHALL support batch publishing of multiple documents"
+    pattern: "ubiquitous"
+    rationale: "Optimize throughput for multi-document workflows"
+    validation: "Publisher.publish_batch() processes list of documents"
+    priority: "medium"
+
+  # PB-009: Publish History
+  PB_009:
+    requirement: "The system SHALL maintain history of all publish attempts with outcomes"
+    pattern: "ubiquitous"
+    rationale: "Enable audit trail and failure analysis"
+    validation: "Publisher.publish_history tracks all PublishResults"
+    priority: "medium"
+
+  # PB-010: Publish Statistics
+  PB_010:
+    requirement: "The system SHALL provide statistics: total_publishes, successful, failed, success_rate, destinations"
+    pattern: "ubiquitous"
+    rationale: "Enable monitoring and quality assessment"
+    validation: "Publisher.get_stats() calculates metrics"
+    priority: "low"
+
+  # PB-011: Error Resilience
+  PB_011:
+    requirement: "WHEN publishing to one destination fails, the system SHALL continue publishing to remaining destinations"
+    pattern: "event-driven"
+    rationale: "Maximize output delivery despite partial failures"
+    validation: "Publisher.publish() handles exceptions per-destination"
+    priority: "high"
+
+  # PB-012: Publish Path Recording
+  PB_012:
+    requirement: "WHEN publishing succeeds, the system SHALL record publish_path in PublishResult"
+    pattern: "event-driven"
+    rationale: "Enable output verification and retrieval"
+    validation: "FilesystemPublisher sets publish_path to output file location"
+    priority: "medium"
+
+# =============================================================================
+# CONTENT VALIDATION REQUIREMENTS
+# =============================================================================
+
+content_validation:
+  # CV-001: Pre-Publish Validation
+  CV_001:
+    requirement: "The system SHALL provide validate_content() hook for publishers to verify content before publishing"
+    pattern: "ubiquitous"
+    rationale: "Enable publisher-specific validation logic"
+    validation: "BasePublisher.validate_content() method available"
+    priority: "low"
+    notes: "Default implementation accepts all content; override in subclasses"
+
+# =============================================================================
+# STORAGE REQUIREMENTS
+# =============================================================================
+
+storage:
+  # ST-001: Version Storage Directory
+  ST_001:
+    requirement: "The system SHALL store versions in .aget/versions directory by default"
+    pattern: "ubiquitous"
+    rationale: "Organize version files separately from source"
+    validation: "VersionManager default versions_dir parameter"
+    priority: "medium"
+
+  # ST-002: Version File Format
+  ST_002:
+    requirement: "The system SHALL store each version as individual JSON file: {version_id}.json"
+    pattern: "ubiquitous"
+    rationale: "Enable direct file access without index lookup"
+    validation: "VersionManager._save_version() creates versioned files"
+    priority: "high"
+
+  # ST-003: Index File
+  ST_003:
+    requirement: "The system SHALL maintain index file: .aget/versions/_index.json mapping document_id to version_ids"
+    pattern: "ubiquitous"
+    rationale: "Optimize version history queries"
+    validation: "VersionManager._save_index() creates _index.json"
+    priority: "high"
+
+  # ST-004: Directory Creation
+  ST_004:
+    requirement: "The system SHALL create storage directories if they do not exist"
+    pattern: "ubiquitous"
+    rationale: "Enable zero-configuration operation"
+    validation: "VersionManager creates versions_dir with mkdir(parents=True, exist_ok=True)"
+    priority: "medium"
+
+  # ST-005: Output Storage Directory
+  ST_005:
+    requirement: "The system SHALL create output directory when FilesystemPublisher is initialized"
+    pattern: "ubiquitous"
+    rationale: "Ensure publish destination exists"
+    validation: "FilesystemPublisher creates output_dir with mkdir()"
+    priority: "medium"
+
+# =============================================================================
+# ROLLBACK REQUIREMENTS
+# =============================================================================
+
+rollback:
+  # RB-001: Version Retrieval for Rollback
+  RB_001:
+    requirement: "The system SHALL enable rollback by retrieving previous version content"
+    pattern: "ubiquitous"
+    rationale: "Support reversion to previous processing state"
+    validation: "VersionManager.get_version() retrieves historical versions"
+    priority: "medium"
+    notes: "Rollback protocol documented separately"
+
+  # RB-002: Parent Version Verification
+  RB_002:
+    requirement: "WHEN comparing versions, the system SHALL indicate if versions are from same document"
+    pattern: "event-driven"
+    rationale: "Prevent invalid version comparisons"
+    validation: "compare_versions() includes same_document boolean"
+    priority: "low"
+
+# =============================================================================
+# INTEGRATION REQUIREMENTS
+# =============================================================================
+
+integration:
+  # IN-001: Version Manager Initialization
+  IN_001:
+    requirement: "The system SHALL allow custom version storage directory via versions_dir parameter"
+    pattern: "ubiquitous"
+    rationale: "Enable flexible storage configuration"
+    validation: "VersionManager.__init__(versions_dir) parameter"
+    priority: "low"
+
+  # IN-002: Publisher Initialization
+  IN_002:
+    requirement: "The system SHALL allow publishers list configuration at initialization"
+    pattern: "ubiquitous"
+    rationale: "Enable declarative publish destination setup"
+    validation: "Publisher.__init__(publishers) parameter"
+    priority: "medium"
+
+  # IN-003: Dynamic Publisher Addition
+  IN_003:
+    requirement: "The system SHALL support adding publishers after initialization"
+    pattern: "ubiquitous"
+    rationale: "Enable runtime publisher configuration"
+    validation: "Publisher.add_publisher() method"
+    priority: "low"
+
+# =============================================================================
+# ERROR HANDLING REQUIREMENTS
+# =============================================================================
+
+error_handling:
+  # EH-001: Version Load Failure
+  EH_001:
+    requirement: "WHEN version file is corrupted or unreadable, the system SHALL return None and print warning"
+    pattern: "event-driven"
+    rationale: "Degrade gracefully on storage errors"
+    validation: "VersionManager.get_version() exception handling"
+    priority: "medium"
+
+  # EH-002: Index Load Failure
+  EH_002:
+    requirement: "WHEN index file is corrupted or unreadable, the system SHALL initialize empty index and print warning"
+    pattern: "event-driven"
+    rationale: "Enable operation despite index corruption"
+    validation: "VersionManager._load_index() exception handling"
+    priority: "medium"
+
+  # EH-003: Publish Failure Recording
+  EH_003:
+    requirement: "WHEN publishing fails, the system SHALL return PublishResult with success=False and error_message"
+    pattern: "event-driven"
+    rationale: "Enable error analysis and retry logic"
+    validation: "Publisher exception handling sets PublishResult fields"
+    priority: "high"
+
+# =============================================================================
+# IMPLEMENTATION REFERENCES
+# =============================================================================
+
+implementation:
+  classes:
+    - "output.version_manager.VersionManager"
+    - "output.version_manager.DocumentVersion"
+    - "output.publisher.Publisher"
+    - "output.publisher.BasePublisher"
+    - "output.publisher.FilesystemPublisher"
+    - "output.publisher.APIPublisher"
+    - "output.publisher.PublishResult"
+    - "output.publisher.PublishStatus"
+
+  protocols:
+    - ".aget/docs/protocols/VERSIONING_PROTOCOL.md"
+    - ".aget/docs/protocols/ROLLBACK_PROTOCOL.md"
+
+# =============================================================================
+# ACCEPTANCE CRITERIA
+# =============================================================================
+
+acceptance_criteria:
+  - "DocumentVersion created with sequential numbering"
+  - "Content hash calculated for change detection"
+  - "Processing metadata stored per L208:207-227"
+  - "Versions persisted to filesystem as JSON"
+  - "Version index maintained for fast lookup"
+  - "Publishing to multiple destinations supported"
+  - "Publish results tracked with success/failure"
+  - "Batch publishing operational"
+  - "Version history retrievable and sortable"
+  - "Errors handled gracefully with warnings"

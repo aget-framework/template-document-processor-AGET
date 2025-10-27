@@ -1,0 +1,566 @@
+# Pipeline Processing Specification
+#
+# Formal specification for document processing pipeline orchestration.
+# Based on: L208 lines 689-726 (Orchestration Patterns), 260-267 (Pipeline Architecture)
+# Format: EARS (Easy Approach to Requirements Syntax)
+
+version: "1.0"
+status: "approved"
+last_updated: "2025-10-26"
+owner: "template-document-processor-AGET"
+
+metadata:
+  description: "Defines requirements for pipeline execution, orchestration, and error handling"
+  references:
+    - "src/pipeline/pipeline_runner.py"
+    - "configs/orchestration.yaml"
+    - "L208 lines 689-726 (Orchestration)"
+    - "L208 lines 260-267 (Pipeline Architecture)"
+
+  scope:
+    - "Pipeline execution modes"
+    - "Stage orchestration"
+    - "Dependency management"
+    - "Error handling and rollback"
+    - "Task decomposition"
+
+# =============================================================================
+# EXECUTION MODE REQUIREMENTS
+# =============================================================================
+
+execution_modes:
+  # EM-001: Sequential Execution
+  EM_001:
+    requirement: "The system SHALL support sequential pipeline execution where each stage completes before the next starts"
+    pattern: "ubiquitous"
+    rationale: "Support ordered processing where stages depend on prior outputs"
+    validation: "PipelineRunner._run_sequential() executes stages in order per L208:691-694"
+    priority: "critical"
+
+  # EM-002: Sequential Data Flow
+  EM_002:
+    requirement: "WHEN running sequentially, the system SHALL pass each stage's output as input to the next stage"
+    pattern: "event-driven"
+    rationale: "Enable data transformation pipeline"
+    validation: "Sequential mode: current_data = result_data passed to next stage"
+    priority: "critical"
+
+  # EM-003: Sequential Error Handling
+  EM_003:
+    requirement: "WHEN a stage fails in sequential mode, the system SHALL stop pipeline execution"
+    pattern: "event-driven"
+    rationale: "Prevent invalid data propagation through pipeline"
+    validation: "Sequential mode breaks on exception"
+    priority: "high"
+
+  # EM-004: Parallel Execution
+  EM_004:
+    requirement: "The system SHALL support parallel pipeline execution where all stages run concurrently with same input"
+    pattern: "ubiquitous"
+    rationale: "Enable fan-out processing for independent operations per L208:696-699"
+    validation: "PipelineRunner._run_parallel() executes stages concurrently"
+    priority: "high"
+
+  # EM-005: Parallel Independence
+  EM_005:
+    requirement: "WHEN running in parallel mode, the system SHALL provide same input_data to all stages"
+    pattern: "event-driven"
+    rationale: "Support independent parallel processing"
+    validation: "Parallel mode passes input_data to all stages"
+    priority: "high"
+
+  # EM-006: Parallel Error Tolerance
+  EM_006:
+    requirement: "WHEN a stage fails in parallel mode, the system SHALL continue executing remaining stages"
+    pattern: "event-driven"
+    rationale: "Maximize output despite partial failures"
+    validation: "Parallel mode continues execution on exception"
+    priority: "medium"
+
+  # EM-007: Mixed Execution
+  EM_007:
+    requirement: "The system SHALL support mixed execution combining parallel and sequential stages based on dependencies"
+    pattern: "ubiquitous"
+    rationale: "Enable complex orchestration patterns per L208:701-726"
+    validation: "PipelineRunner._run_mixed() handles dependency-based execution"
+    priority: "high"
+
+  # EM-008: Dependency-Based Execution
+  EM_008:
+    requirement: "WHEN running in mixed mode, the system SHALL execute stages without dependencies in parallel, then execute dependent stages sequentially"
+    pattern: "event-driven"
+    rationale: "Optimize throughput while respecting dependencies"
+    validation: "Mixed mode groups independent vs dependent stages"
+    priority: "high"
+
+# =============================================================================
+# PIPELINE STAGE REQUIREMENTS
+# =============================================================================
+
+pipeline_stages:
+  # PS-001: Stage Definition
+  PS_001:
+    requirement: "The system SHALL represent pipeline stages with: name, processor function, execution_mode, depends_on"
+    pattern: "ubiquitous"
+    rationale: "Standardize stage configuration"
+    validation: "PipelineStage dataclass structure"
+    priority: "critical"
+
+  # PS-002: Stage Registration
+  PS_002:
+    requirement: "The system SHALL provide add_stage() method for registering stages with pipeline"
+    pattern: "ubiquitous"
+    rationale: "Enable declarative pipeline construction"
+    validation: "PipelineRunner.add_stage() appends to stages list"
+    priority: "high"
+
+  # PS-003: Method Chaining
+  PS_003:
+    requirement: "WHEN adding stages, the system SHALL return self to enable method chaining"
+    pattern: "event-driven"
+    rationale: "Support fluent API pattern"
+    validation: "add_stage() returns 'PipelineRunner'"
+    priority: "low"
+
+  # PS-004: Stage Result Structure
+  PS_004:
+    requirement: "The system SHALL represent stage results with: stage_name, success, result_data, error_message, execution_time"
+    pattern: "ubiquitous"
+    rationale: "Standardize stage output tracking"
+    validation: "StageResult dataclass structure"
+    priority: "high"
+
+  # PS-005: Execution Time Tracking
+  PS_005:
+    requirement: "The system SHALL record execution time for each stage"
+    pattern: "ubiquitous"
+    rationale: "Enable performance analysis and optimization"
+    validation: "StageResult.execution_time populated via time.time() delta"
+    priority: "medium"
+
+# =============================================================================
+# DEPENDENCY MANAGEMENT REQUIREMENTS
+# =============================================================================
+
+dependency_management:
+  # DM-001: Dependency Declaration
+  DM_001:
+    requirement: "The system SHALL allow stages to declare dependencies via depends_on field"
+    pattern: "ubiquitous"
+    rationale: "Enable explicit dependency specification"
+    validation: "PipelineStage.depends_on list of stage names"
+    priority: "high"
+
+  # DM-002: Dependency Validation
+  DM_002:
+    requirement: "WHEN executing dependent stage, the system SHALL verify all dependencies succeeded"
+    pattern: "event-driven"
+    rationale: "Prevent execution with failed dependencies"
+    validation: "Mixed mode checks dependencies_met before execution"
+    priority: "critical"
+
+  # DM-003: Dependency Data Passing
+  DM_003:
+    requirement: "WHEN executing dependent stage, the system SHALL provide dependency results as input"
+    pattern: "event-driven"
+    rationale: "Enable dependent stages to consume predecessor outputs"
+    validation: "Mixed mode gathers dep_data dictionary for processor"
+    priority: "high"
+
+  # DM-004: Unmet Dependency Handling
+  DM_004:
+    requirement: "WHEN dependencies are not met, the system SHALL mark stage as failed with error message"
+    pattern: "event-driven"
+    rationale: "Provide clear failure reason"
+    validation: "Mixed mode creates StageResult with 'Dependencies not met' error"
+    priority: "high"
+
+  # DM-005: Independent Stage Detection
+  DM_005:
+    requirement: "The system SHALL identify stages without dependencies for parallel execution"
+    pattern: "ubiquitous"
+    rationale: "Optimize mixed mode execution"
+    validation: "Mixed mode filters independent_stages (no depends_on)"
+    priority: "medium"
+
+# =============================================================================
+# STANDARD PIPELINE REQUIREMENTS
+# =============================================================================
+
+standard_pipeline:
+  # SP-001: Four-Stage Architecture
+  SP_001:
+    requirement: "The system SHALL implement four pipeline stages: Ingestion, Preprocessing, Processing, Postprocessing"
+    pattern: "ubiquitous"
+    rationale: "Standardize pipeline structure per L208:260-267"
+    validation: "orchestration.yaml defines 4 pipeline_stages"
+    priority: "high"
+
+  # SP-002: Ingestion Stage
+  SP_002:
+    requirement: "The system SHALL include Ingestion stage performing: document validation, queue enrollment"
+    pattern: "ubiquitous"
+    rationale: "Verify and track documents before processing"
+    validation: "orchestration.yaml:pipeline_stages.ingestion tasks"
+    priority: "critical"
+
+  # SP-003: Preprocessing Stage
+  SP_003:
+    requirement: "The system SHALL include Preprocessing stage performing: input sanitization, content filtering"
+    pattern: "ubiquitous"
+    rationale: "Secure input before LLM processing"
+    validation: "orchestration.yaml:pipeline_stages.preprocessing tasks"
+    priority: "critical"
+
+  # SP-004: Processing Stage
+  SP_004:
+    requirement: "The system SHALL include Processing stage performing: data extraction, schema validation"
+    pattern: "ubiquitous"
+    rationale: "Core document processing with validation"
+    validation: "orchestration.yaml:pipeline_stages.processing tasks"
+    priority: "critical"
+
+  # SP-005: Postprocessing Stage
+  SP_005:
+    requirement: "The system SHALL include Postprocessing stage performing: version creation, output publishing"
+    pattern: "ubiquitous"
+    rationale: "Persist and distribute processing results"
+    validation: "orchestration.yaml:pipeline_stages.postprocessing tasks"
+    priority: "critical"
+
+  # SP-006: Stage Ordering
+  SP_006:
+    requirement: "The system SHALL execute pipeline stages in order: Ingestion → Preprocessing → Processing → Postprocessing"
+    pattern: "ubiquitous"
+    rationale: "Enforce logical processing flow"
+    validation: "orchestration.yaml:pipeline_stages.*.order fields (1, 2, 3, 4)"
+    priority: "high"
+
+# =============================================================================
+# ERROR HANDLING REQUIREMENTS
+# =============================================================================
+
+error_handling:
+  # EH-001: Exception Capture
+  EH_001:
+    requirement: "WHEN stage execution raises exception, the system SHALL capture exception in StageResult.error_message"
+    pattern: "event-driven"
+    rationale: "Enable error analysis and debugging"
+    validation: "All run modes have try/except with StageResult creation"
+    priority: "high"
+
+  # EH-002: Success/Failure Tracking
+  EH_002:
+    requirement: "The system SHALL mark StageResult.success as True for successful execution, False for failures"
+    pattern: "ubiquitous"
+    rationale: "Enable downstream conditional logic"
+    validation: "StageResult.success set based on exception presence"
+    priority: "high"
+
+  # EH-003: Partial Result Preservation
+  EH_003:
+    requirement: "WHEN stage fails, the system SHALL preserve results from successful stages"
+    pattern: "event-driven"
+    rationale: "Enable partial result recovery and debugging"
+    validation: "Results dict populated before failure in all modes"
+    priority: "medium"
+
+  # EH-004: Result Dictionary
+  EH_004:
+    requirement: "The system SHALL return results as dictionary mapping stage_name to StageResult"
+    pattern: "ubiquitous"
+    rationale: "Enable name-based result access"
+    validation: "All run() methods return Dict[str, StageResult]"
+    priority: "high"
+
+  # EH-005: Execution Time on Failure
+  EH_005:
+    requirement: "WHEN stage fails, the system SHALL record execution time up to failure point"
+    pattern: "event-driven"
+    rationale: "Enable timeout and performance analysis"
+    validation: "time.time() - start_time calculated in exception handler"
+    priority: "low"
+
+# =============================================================================
+# ROLLBACK REQUIREMENTS
+# =============================================================================
+
+rollback:
+  # RB-001: Rollback Configuration
+  RB_001:
+    requirement: "The system SHALL support rollback configuration in orchestration.yaml"
+    pattern: "ubiquitous"
+    rationale: "Enable automatic error recovery per config"
+    validation: "orchestration.yaml:error_handling.rollback settings"
+    priority: "medium"
+
+  # RB-002: Rollback Triggers
+  RB_002:
+    requirement: "The system SHALL define rollback triggers: validation_failure, processing_error, timeout"
+    pattern: "ubiquitous"
+    rationale: "Specify conditions requiring rollback"
+    validation: "orchestration.yaml:error_handling.rollback.triggers"
+    priority: "medium"
+
+  # RB-003: Rollback Actions
+  RB_003:
+    requirement: "The system SHALL support rollback actions: revert_to_last_version, mark_failed, retry_with_smaller_chunks"
+    pattern: "ubiquitous"
+    rationale: "Enable flexible rollback strategies"
+    validation: "orchestration.yaml:error_handling.rollback.actions"
+    priority: "medium"
+
+# =============================================================================
+# TASK DECOMPOSITION REQUIREMENTS
+# =============================================================================
+
+task_decomposition:
+  # TD-001: Automatic Decomposition
+  TD_001:
+    requirement: "The system SHALL support automatic task decomposition based on document size, complexity, and estimated duration"
+    pattern: "ubiquitous"
+    rationale: "Optimize large document processing per L208:360-388"
+    validation: "orchestration.yaml:task_decomposition.automatic.triggers"
+    priority: "medium"
+
+  # TD-002: Size-Based Decomposition
+  TD_002:
+    requirement: "WHEN document exceeds 100KB, the system SHALL decompose into 50KB chunks with 5KB overlap"
+    pattern: "event-driven"
+    rationale: "Manage token limits and processing time"
+    validation: "orchestration.yaml:task_decomposition.automatic.triggers.size"
+    priority: "medium"
+
+  # TD-003: Complexity-Based Decomposition
+  TD_003:
+    requirement: "WHEN schema exceeds 20 fields or nesting depth > 3, the system SHALL decompose schema hierarchically"
+    pattern: "event-driven"
+    rationale: "Improve extraction accuracy for complex schemas"
+    validation: "orchestration.yaml:task_decomposition.automatic.triggers.complexity"
+    priority: "low"
+
+  # TD-004: Chunking Strategies
+  TD_004:
+    requirement: "The system SHALL support chunking methods: semantic, fixed_size, page_based"
+    pattern: "ubiquitous"
+    rationale: "Enable context-appropriate decomposition"
+    validation: "orchestration.yaml:task_decomposition.automatic.strategies.chunking"
+    priority: "low"
+
+  # TD-005: Result Aggregation
+  TD_005:
+    requirement: "WHEN tasks are decomposed, the system SHALL aggregate results using: merge, concatenate, first, or last strategy"
+    pattern: "event-driven"
+    rationale: "Reconstruct complete output from decomposed tasks"
+    validation: "orchestration.yaml:result_aggregation.strategy"
+    priority: "medium"
+
+# =============================================================================
+# RETRY REQUIREMENTS
+# =============================================================================
+
+retry:
+  # RT-001: Retry Configuration
+  RT_001:
+    requirement: "The system SHALL support per-stage retry configuration with max_attempts and backoff strategy"
+    pattern: "ubiquitous"
+    rationale: "Enable resilient processing with transient error recovery"
+    validation: "orchestration.yaml:error_handling.retry per stage"
+    priority: "medium"
+
+  # RT-002: Exponential Backoff
+  RT_002:
+    requirement: "The system SHALL support exponential backoff retry strategy"
+    pattern: "ubiquitous"
+    rationale: "Reduce server load during transient failures"
+    validation: "orchestration.yaml:error_handling.retry.*.backoff: exponential"
+    priority: "low"
+
+  # RT-003: Linear Backoff
+  RT_003:
+    requirement: "The system SHALL support linear backoff retry strategy"
+    pattern: "ubiquitous"
+    rationale: "Predictable retry timing for deterministic errors"
+    validation: "orchestration.yaml:error_handling.retry.*.backoff: linear"
+    priority: "low"
+
+  # RT-004: Base Delay Configuration
+  RT_004:
+    requirement: "The system SHALL allow configuration of base_delay_seconds for retry backoff calculation"
+    pattern: "ubiquitous"
+    rationale: "Tune retry timing per stage characteristics"
+    validation: "orchestration.yaml:error_handling.retry.*.base_delay_seconds"
+    priority: "low"
+
+# =============================================================================
+# PROGRESS TRACKING REQUIREMENTS
+# =============================================================================
+
+progress_tracking:
+  # PT-001: Progress Calculation
+  PT_001:
+    requirement: "The system SHALL support progress calculation methods: task_completion, weighted, estimated"
+    pattern: "ubiquitous"
+    rationale: "Enable accurate progress reporting"
+    validation: "orchestration.yaml:progress_tracking.calculation.method"
+    priority: "low"
+
+  # PT-002: Weighted Progress
+  PT_002:
+    requirement: "The system SHALL support weighted progress with stage weights: ingestion (0.1), preprocessing (0.1), processing (0.6), postprocessing (0.2)"
+    pattern: "ubiquitous"
+    rationale: "Reflect actual processing effort distribution"
+    validation: "orchestration.yaml:progress_tracking.calculation.weighted"
+    priority: "low"
+
+  # PT-003: ETA Calculation
+  PT_003:
+    requirement: "WHEN progress tracking enabled, the system SHALL calculate estimated time to completion"
+    pattern: "event-driven"
+    rationale: "Set user expectations for long-running processing"
+    validation: "orchestration.yaml:progress_tracking.reporting.calculate_eta"
+    priority: "low"
+
+# =============================================================================
+# STATUS TRACKING REQUIREMENTS
+# =============================================================================
+
+status_tracking:
+  # ST-001: Status States
+  ST_001:
+    requirement: "The system SHALL support pipeline states: PENDING, IN_PROGRESS, COMPLETED, FAILED, CANCELLED"
+    pattern: "ubiquitous"
+    rationale: "Enable comprehensive status tracking per L208:301-329"
+    validation: "orchestration.yaml:status_tracking.states"
+    priority: "medium"
+
+  # ST-002: Status Persistence
+  ST_002:
+    requirement: "The system SHALL persist pipeline status to .aget/pipeline_status"
+    pattern: "ubiquitous"
+    rationale: "Enable status recovery after interruption"
+    validation: "orchestration.yaml:status_tracking.persistence"
+    priority: "low"
+
+  # ST-003: Granular Status
+  ST_003:
+    requirement: "The system SHALL support status tracking at: task, stage, and pipeline granularity"
+    pattern: "ubiquitous"
+    rationale: "Enable fine-grained progress monitoring"
+    validation: "orchestration.yaml:status_tracking.updates.granularity"
+    priority: "low"
+
+# =============================================================================
+# SIMPLIFIED PIPELINE REQUIREMENTS
+# =============================================================================
+
+simplified_pipeline:
+  # SIP-001: SimplePipeline Class
+  SIP_001:
+    requirement: "The system SHALL provide SimplePipeline for common sequential use cases"
+    pattern: "ubiquitous"
+    rationale: "Reduce boilerplate for simple pipelines"
+    validation: "SimplePipeline class implementation"
+    priority: "low"
+
+  # SIP-002: Fluent Step Addition
+  SIP_002:
+    requirement: "The system SHALL support fluent step addition via add_step() returning self"
+    pattern: "ubiquitous"
+    rationale: "Enable concise pipeline construction"
+    validation: "SimplePipeline.add_step() returns 'SimplePipeline'"
+    priority: "low"
+
+  # SIP-003: Simplified Results
+  SIP_003:
+    requirement: "The system SHALL return simplified results as Dict with success and data/error fields"
+    pattern: "ubiquitous"
+    rationale: "Reduce complexity for simple use cases"
+    validation: "SimplePipeline.run() returns Dict[str, Any]"
+    priority: "low"
+
+# =============================================================================
+# PARALLELIZATION REQUIREMENTS
+# =============================================================================
+
+parallelization:
+  # PAR-001: Concurrency Limits
+  PAR_001:
+    requirement: "The system SHALL enforce maximum concurrent tasks limit"
+    pattern: "ubiquitous"
+    rationale: "Prevent resource exhaustion"
+    validation: "orchestration.yaml:orchestration.parallel.max_concurrent_tasks"
+    priority: "medium"
+
+  # PAR-002: Task Timeout
+  PAR_002:
+    requirement: "The system SHALL enforce timeout per task in parallel execution"
+    pattern: "ubiquitous"
+    rationale: "Prevent hung tasks from blocking pipeline"
+    validation: "orchestration.yaml:orchestration.parallel.timeout_per_task_seconds"
+    priority: "medium"
+
+  # PAR-003: Auto-Detection
+  PAR_003:
+    requirement: "The system SHALL auto-detect parallelizable tasks based on independence"
+    pattern: "ubiquitous"
+    rationale: "Optimize without manual configuration"
+    validation: "orchestration.yaml:optimization.parallelization.auto_detect_parallelizable"
+    priority: "low"
+
+# =============================================================================
+# INTEGRATION REQUIREMENTS
+# =============================================================================
+
+integration:
+  # INT-001: Standard Pipeline Factory
+  INT_001:
+    requirement: "The system SHALL provide create_standard_pipeline() factory function"
+    pattern: "ubiquitous"
+    rationale: "Enable quick setup with standard stages"
+    validation: "create_standard_pipeline() returns configured PipelineRunner"
+    priority: "low"
+
+  # INT-002: Configuration Loading
+  INT_002:
+    requirement: "The system SHALL support loading pipeline configuration from orchestration.yaml"
+    pattern: "ubiquitous"
+    rationale: "Enable declarative pipeline definition"
+    validation: "orchestration.yaml structure consumable by PipelineRunner"
+    priority: "medium"
+
+# =============================================================================
+# IMPLEMENTATION REFERENCES
+# =============================================================================
+
+implementation:
+  classes:
+    - "pipeline.pipeline_runner.PipelineRunner"
+    - "pipeline.pipeline_runner.SimplePipeline"
+    - "pipeline.pipeline_runner.PipelineStage"
+    - "pipeline.pipeline_runner.StageResult"
+    - "pipeline.pipeline_runner.ExecutionMode"
+
+  configuration:
+    - "configs/orchestration.yaml"
+
+  protocols:
+    - ".aget/docs/protocols/PROCESSING_PROTOCOL.md"
+    - ".aget/docs/protocols/ROLLBACK_PROTOCOL.md"
+    - ".aget/docs/protocols/BATCH_PROCESSING_PROTOCOL.md"
+
+# =============================================================================
+# ACCEPTANCE CRITERIA
+# =============================================================================
+
+acceptance_criteria:
+  - "Sequential execution passes stage outputs to next stage"
+  - "Parallel execution runs stages concurrently with same input"
+  - "Mixed execution respects dependencies"
+  - "Stage failures captured with error messages"
+  - "Execution time tracked per stage"
+  - "Dependency validation prevents invalid execution"
+  - "Four-stage architecture implemented (Ingestion, Preprocessing, Processing, Postprocessing)"
+  - "Results returned as dictionary mapping stage names"
+  - "Retry and rollback configurations supported"
+  - "SimplePipeline available for common use cases"

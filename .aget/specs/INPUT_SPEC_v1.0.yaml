@@ -1,0 +1,336 @@
+# Input Document Specification
+#
+# Formal specification for input document requirements and validation.
+# Based on: L208 lines 247-251 (Validation Pipeline Architecture)
+# Format: EARS (Easy Approach to Requirements Syntax)
+
+version: "1.0"
+status: "approved"
+last_updated: "2025-10-26"
+owner: "template-document-processor-AGET"
+
+metadata:
+  description: "Defines requirements for input documents to document processing pipeline"
+  references:
+    - "configs/validation_rules.yaml"
+    - "src/ingestion/validator.py"
+    - "L208 lines 247-251"
+
+  scope:
+    - "File-level validation"
+    - "Content validation"
+    - "Format requirements"
+    - "Size constraints"
+
+# =============================================================================
+# FILE REQUIREMENTS
+# =============================================================================
+
+file_requirements:
+  # FR-001: File Existence and Accessibility
+  FR_001:
+    requirement: "The system SHALL verify that input documents exist and are readable before processing"
+    pattern: "ubiquitous"
+    rationale: "Prevent processing failures from missing or inaccessible files"
+    validation: "FileExistsValidator checks file existence and readability"
+    priority: "critical"
+
+  # FR-002: File Size Limits
+  FR_002:
+    requirement: "The system SHALL reject input documents exceeding 10,485,760 bytes (10 MB)"
+    pattern: "ubiquitous"
+    rationale: "Prevent memory exhaustion and excessive LLM token usage"
+    validation: "FileSizeValidator enforces max_bytes limit"
+    priority: "high"
+
+  # FR-003: File Size Warning
+  FR_003:
+    requirement: "WHEN input document size exceeds 8,388,608 bytes (8 MB), the system SHALL emit a warning"
+    pattern: "event-driven"
+    rationale: "Alert users to potential performance degradation"
+    validation: "FileSizeValidator checks warn_bytes threshold"
+    priority: "medium"
+
+  # FR-004: File Format Validation
+  FR_004:
+    requirement: "The system SHALL accept only documents with extensions: .txt, .md, .pdf, .docx, .html, .xml, .json"
+    pattern: "ubiquitous"
+    rationale: "Limit processing to supported document formats"
+    validation: "FileFormatValidator checks allowed_extensions"
+    priority: "critical"
+
+  # FR-005: MIME Type Validation (Optional)
+  FR_005:
+    requirement: "WHERE MIME type validation is enabled, the system SHALL verify document MIME type matches extension"
+    pattern: "optional"
+    rationale: "Detect file extension spoofing and format mismatches"
+    validation: "FileFormatValidator checks allowed_mimetypes when configured"
+    priority: "medium"
+    configuration:
+      enabled_by: "validation_rules.yaml:file_validation.format.strict_mode"
+
+  # FR-006: Readability Check
+  FR_006:
+    requirement: "The system SHALL verify input documents are readable by attempting to read first 1024 bytes"
+    pattern: "ubiquitous"
+    rationale: "Detect permission issues and file corruption early"
+    validation: "FileExistsValidator reads sample_bytes"
+    priority: "high"
+
+# =============================================================================
+# CONTENT REQUIREMENTS
+# =============================================================================
+
+content_requirements:
+  # CR-001: Character Encoding
+  CR_001:
+    requirement: "The system SHALL accept documents with encodings: UTF-8, UTF-16, ASCII, ISO-8859-1"
+    pattern: "ubiquitous"
+    rationale: "Support common text encodings while preventing unsupported formats"
+    validation: "Content encoding detection per validation_rules.yaml"
+    priority: "high"
+
+  # CR-002: Encoding Fallback
+  CR_002:
+    requirement: "WHEN encoding detection fails, the system SHALL attempt UTF-8 decoding as fallback"
+    pattern: "event-driven"
+    rationale: "Maximize document compatibility with safe default"
+    validation: "validation_rules.yaml:content_validation.encoding.fallback"
+    priority: "medium"
+
+  # CR-003: Invalid Encoding Rejection
+  CR_003:
+    requirement: "IF document encoding is invalid and fallback fails, THEN the system SHALL reject the document"
+    pattern: "conditional"
+    rationale: "Prevent corrupted content from entering pipeline"
+    validation: "validation_rules.yaml:content_validation.encoding.reject_invalid"
+    priority: "high"
+
+  # CR-004: Minimum Content Length
+  CR_004:
+    requirement: "The system SHALL reject documents with fewer than 10 characters"
+    pattern: "ubiquitous"
+    rationale: "Ensure meaningful content for processing"
+    validation: "validation_rules.yaml:content_validation.length.min_chars"
+    priority: "medium"
+
+  # CR-005: Maximum Content Length
+  CR_005:
+    requirement: "The system SHALL reject documents exceeding 500,000 characters"
+    pattern: "ubiquitous"
+    rationale: "Prevent excessive LLM token usage (~100k tokens max)"
+    validation: "validation_rules.yaml:content_validation.length.max_chars"
+    priority: "high"
+
+  # CR-006: Content Length Warning
+  CR_006:
+    requirement: "WHEN document exceeds 400,000 characters, the system SHALL emit a warning"
+    pattern: "event-driven"
+    rationale: "Alert to approaching token limits"
+    validation: "validation_rules.yaml:content_validation.length.warn_chars"
+    priority: "low"
+
+  # CR-007: Empty Document Rejection
+  CR_007:
+    requirement: "The system SHALL reject empty documents (0 characters)"
+    pattern: "ubiquitous"
+    rationale: "No value in processing empty files"
+    validation: "validation_rules.yaml:content_validation.length.allow_empty: false"
+    priority: "medium"
+
+  # CR-008: Binary Content Detection
+  CR_008:
+    requirement: "WHEN binary content is detected in text files, the system SHALL emit a warning"
+    pattern: "event-driven"
+    rationale: "Alert to potential format mismatches"
+    validation: "validation_rules.yaml:content_validation.structure.check_binary_content"
+    priority: "low"
+
+# =============================================================================
+# SUPPORTED FORMATS
+# =============================================================================
+
+supported_formats:
+  # SF-001: Plain Text
+  SF_001:
+    format: "text/plain"
+    extensions: [".txt"]
+    requirements:
+      - "UTF-8 encoding preferred"
+      - "Maximum 500,000 characters"
+      - "Minimum 10 characters"
+
+  # SF-002: Markdown
+  SF_002:
+    format: "text/markdown"
+    extensions: [".md"]
+    requirements:
+      - "UTF-8 encoding required"
+      - "Standard Markdown syntax"
+      - "Maximum 500,000 characters"
+
+  # SF-003: PDF
+  SF_003:
+    format: "application/pdf"
+    extensions: [".pdf"]
+    requirements:
+      - "Maximum 10 MB file size"
+      - "Text-extractable (not image-only PDFs)"
+      - "PDF version 1.4 or higher preferred"
+    notes: "Extraction handled by processing layer, not validation"
+
+  # SF-004: DOCX
+  SF_004:
+    format: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    extensions: [".docx"]
+    requirements:
+      - "Maximum 10 MB file size"
+      - "Office Open XML format"
+      - "Not password-protected"
+    notes: "Extraction handled by processing layer"
+
+  # SF-005: HTML
+  SF_005:
+    format: "text/html"
+    extensions: [".html"]
+    requirements:
+      - "UTF-8 encoding preferred"
+      - "Well-formed HTML (strict validation not required)"
+      - "Maximum 500,000 characters after tag stripping"
+
+  # SF-006: XML
+  SF_006:
+    format: "application/xml"
+    extensions: [".xml"]
+    requirements:
+      - "UTF-8 encoding required"
+      - "Well-formed XML (parseable)"
+      - "Maximum 500,000 characters"
+
+  # SF-007: JSON
+  SF_007:
+    format: "application/json"
+    extensions: [".json"]
+    requirements:
+      - "UTF-8 encoding required"
+      - "Valid JSON syntax (parseable)"
+      - "Maximum 500,000 characters"
+
+# =============================================================================
+# VALIDATION PIPELINE REQUIREMENTS
+# =============================================================================
+
+validation_pipeline:
+  # VP-001: Validation Order
+  VP_001:
+    requirement: "The system SHALL execute validation in order: file_validation, content_validation, schema_validation, custom_rules"
+    pattern: "ubiquitous"
+    rationale: "Fail fast on file issues before expensive content validation"
+    validation: "validation_rules.yaml:pipeline.execution_order"
+    priority: "high"
+
+  # VP-002: Fail-Fast Mode
+  VP_002:
+    requirement: "WHEN validation rule fails in fail_fast mode, the system SHALL stop validation and return failure"
+    pattern: "event-driven"
+    rationale: "Optimize performance by not running unnecessary validation"
+    validation: "validation_rules.yaml:pipeline.on_failure.mode"
+    priority: "medium"
+
+  # VP-003: Validation Timeout
+  VP_003:
+    requirement: "The system SHALL abort validation after 30 seconds per document"
+    pattern: "ubiquitous"
+    rationale: "Prevent hung validation from blocking pipeline"
+    validation: "validation_rules.yaml:pipeline.timeout_seconds"
+    priority: "high"
+
+  # VP-004: Invalid Document Queuing
+  VP_004:
+    requirement: "WHEN document fails validation, the system SHALL NOT enqueue document for processing"
+    pattern: "event-driven"
+    rationale: "Prevent invalid documents from entering pipeline"
+    validation: "validation_rules.yaml:integration.queue.reject_invalid"
+    priority: "critical"
+
+  # VP-005: Failed Document Marking
+  VP_005:
+    requirement: "WHEN document fails validation, the system SHALL mark document as FAILED in queue with error details"
+    pattern: "event-driven"
+    rationale: "Track validation failures for reporting and debugging"
+    validation: "validation_rules.yaml:integration.queue.mark_as_failed"
+    priority: "high"
+
+# =============================================================================
+# METADATA REQUIREMENTS
+# =============================================================================
+
+metadata_requirements:
+  # MR-001: File Metadata Collection
+  MR_001:
+    requirement: "The system SHALL collect file metadata during validation: size_bytes, extension, mime_type"
+    pattern: "ubiquitous"
+    rationale: "Provide context for processing decisions and routing"
+    validation: "validator.py populates metadata dict"
+    priority: "medium"
+
+  # MR-002: Validation Result Metadata
+  MR_002:
+    requirement: "The system SHALL include in validation results: valid status, errors list, warnings list, metadata dict"
+    pattern: "ubiquitous"
+    rationale: "Complete validation reporting"
+    validation: "ValidationResult dataclass structure"
+    priority: "high"
+
+# =============================================================================
+# ERROR HANDLING REQUIREMENTS
+# =============================================================================
+
+error_handling:
+  # EH-001: Validation Error Logging
+  EH_001:
+    requirement: "WHEN validation fails, the system SHALL log validation errors"
+    pattern: "event-driven"
+    rationale: "Enable debugging and auditing"
+    validation: "validation_rules.yaml:pipeline.on_failure.log_failures"
+    priority: "medium"
+
+  # EH-002: Warning Logging
+  EH_002:
+    requirement: "WHEN validation produces warnings, the system SHALL log warnings"
+    pattern: "event-driven"
+    rationale: "Alert to potential issues without blocking processing"
+    validation: "validation_rules.yaml:pipeline.on_failure.log_warnings"
+    priority: "low"
+
+# =============================================================================
+# IMPLEMENTATION REFERENCES
+# =============================================================================
+
+implementation:
+  classes:
+    - "ingestion.validator.DocumentValidator"
+    - "ingestion.validator.FileSizeValidator"
+    - "ingestion.validator.FileFormatValidator"
+    - "ingestion.validator.FileExistsValidator"
+    - "ingestion.validator.ValidationRule"
+    - "ingestion.validator.ValidationResult"
+
+  configuration:
+    - "configs/validation_rules.yaml"
+
+  protocols:
+    - ".aget/docs/protocols/VALIDATION_PROTOCOL.md"
+
+# =============================================================================
+# ACCEPTANCE CRITERIA
+# =============================================================================
+
+acceptance_criteria:
+  - "All supported formats validated per specification"
+  - "Size limits enforced (10 MB max, 8 MB warn)"
+  - "Encoding requirements enforced"
+  - "Invalid documents rejected before queue entry"
+  - "Validation errors and warnings logged"
+  - "Validation completes within 30 seconds per document"
+  - "Metadata collected and reported"
