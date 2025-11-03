@@ -1,8 +1,8 @@
-# Session: v3.0.0 Format Preservation Framework Release
+# Session: v2.8.0 Format Preservation Framework Release
 
 **Date**: 2025-11-03
 **Agent**: private-supervisor-AGET v2.7.0 (Coordinator)
-**Objective**: Release template-document-processor-AGET v3.0.0 with format preservation capabilities
+**Objective**: Release template-document-processor-AGET v2.8.0 with format preservation capabilities
 
 ---
 
@@ -15,14 +15,16 @@ total_exchanges: ~50
 tool_calls: ~80
 tokens_used: ~105k/200k (52%)
 objectives:
-  - Gate 4 execution (Integration Testing, Dogfooding, Release)
-  - Validate v3.0.0 readiness
-  - Release v3.0.0 with format preservation framework
+  - Gate 4 execution (Integration Testing, Dogfooding, Versioning Correction, Release)
+  - Validate v2.8.0 readiness
+  - Release v2.8.0 with format preservation framework
 blockers: []
 patterns_discovered:
   - Self-dogfooding validation pattern
   - Option C (Hybrid) complexity management
   - Friction point counting in real-time
+  - Template versioning pattern (dual versioning for specialized templates)
+  - Incremental version progression (v2.7.0 → v2.8.0, not v3.0.0)
 ```
 
 ---
@@ -184,36 +186,115 @@ output_path = "tests/fixtures/test_with_track_changes.docx"  # Same file = prese
 
 ---
 
-### Gate 4.4: Release Preparation (~1h, ~10k tokens)
+### Gate 4.4: Versioning Correction (~15min, ~3k tokens)
 
-**Objective**: Create release artifacts, commit changes, prepare v3.0.0 release.
+**Objective**: Correct template version from v3.0.0 to v2.8.0 (incremental from v2.7.0).
+
+**Issue Identified**: Template version set to v3.0.0, but template started at v2.7.0 in Oct 2025. First enhancement should be v2.8.0, not v3.0.0 (skipping v2.8 and v2.9 entirely).
+
+**Supervisor Assessment**: "Shouldn't template version be at most v2? Template started at v2.7.0, first enhancement → v2.8.0 (NOT v3.0.0). Reserves v3.0.0 for even more significant changes."
+
+**Correct Versioning Logic**:
+- Template created: Oct 2025 at v2.7.0
+- First enhancement: Nov 2025 (format preservation)
+- Correct version: v2.8.0 (incremental from baseline)
+- v3.0.0: Reserved for future major enhancements
+
+**Files Corrected** (5 files):
+1. `.aget/version.json`: `template_version: 3.0.0` → `2.8.0`
+2. `README.md`: All v3.0.0 references → v2.8.0
+3. `CHANGELOG.md`: [3.0.0] → [2.8.0]
+4. `MIGRATION_v2_to_v3.md`: Renamed to `MIGRATION_v2.7_to_v2.8.md`, updated all references
+5. `L250_template_version_control_pattern.md`: Updated example version
+
+**Dual Versioning Pattern** (introduced in this release):
+```json
+{
+  "aget_version": "2.7.0",       // Framework compliance
+  "template_version": "2.8.0",   // Template-specific features
+  "template_base": "worker",     // Base template type
+  ...
+}
+```
+
+**Learning Document**: L250_template_version_control_pattern.md created in supervisor repo to document this pattern for framework-wide adoption.
+
+**Supervisor Rating**: 9/10 (excellent systematic correction with honest acknowledgment)
+
+---
+
+### Gate 4.5: Final Release Preparation (~1h, ~10k tokens)
+
+**Objective**: Finalize release artifacts, commit changes, prepare v2.8.0 release.
 
 **Deliverables**:
 1. **CHANGELOG.md Updated**:
-   - v3.0.0 entry with comprehensive change documentation
+   - v2.8.0 entry with comprehensive change documentation
+   - Dual versioning note (template_version vs aget_version)
    - Categories: Added, Changed, Fixed, Technical Details, Validation, Impact
-   - Post-release validation noted (v3.0.0 + 3 months user feedback)
+   - Post-release validation noted (v2.8.0 + 3 months user feedback)
 
-2. **MIGRATION_v2_to_v3.md Created** (250 lines):
+2. **MIGRATION_v2.7_to_v2.8.md Created** (250 lines):
    - Zero-risk migration (backward compatible)
    - 5-step migration process (all optional)
    - Decision framework (who should upgrade?)
    - Rollback instructions (if needed)
    - Testing procedures
 
-3. **Git Commit** (52992a6):
-   - Message: "release: v3.0.0 - Format Preservation Framework"
-   - Files changed: 19 files, +3,656 insertions, -15 deletions
-   - New files: 15 (modules, docs, tests, fixtures, migration guide)
-
-4. **README.md Updated**:
-   - Version: 2.7.0 → 3.0.0
+3. **README.md Updated**:
+   - Template Version: 2.8.0, AGET Framework: v2.7.0
+   - Dual versioning explanation added
    - Overview: Added format preservation capabilities
    - Protocols: 9 → 10 (Format Preservation added)
-   - Version history: v3.0.0 entry with complete changelog
+   - Version history: v2.8.0 entry with complete changelog
 
-5. **Version Configuration**:
-   - `.aget/version.json`: v3.0.0, new capabilities added (format_preservation, ooxml_verification, l245_prevention)
+4. **Version Configuration**:
+   - `.aget/version.json`:
+     - `aget_version`: 2.7.0 (framework compliance)
+     - `template_version`: 2.8.0 (template-specific features)
+     - `template_base`: "worker"
+   - New capabilities added (format_preservation, ooxml_verification, l245_prevention)
+
+5. **Git Commit** (3e0b8c7):
+   - Message: "release: v2.8.0 - Format Preservation Framework with dual versioning"
+   - Files changed: 20 files, +4,178 insertions, -16 deletions
+   - Pushed to GitHub (main branch)
+
+---
+
+### Gate 4.6: GitHub Release (~5min, ~2k tokens)
+
+**Objective**: Create official GitHub release v2.8.0 with release notes.
+
+**Execution**:
+1. **Release Notes Created** (`/tmp/release_notes_v2.8.0.md`):
+   - Comprehensive feature summary
+   - Dual versioning explanation
+   - Key capabilities documented
+   - Migration guide referenced
+   - Validation metrics included
+
+2. **GitHub Release Created**:
+   ```bash
+   gh release create v2.8.0 \
+     --title "v2.8.0 - Format Preservation Framework" \
+     --notes-file /tmp/release_notes_v2.8.0.md \
+     --repo aget-framework/template-document-processor-AGET
+   ```
+
+3. **Release URL**: https://github.com/aget-framework/template-document-processor-AGET/releases/tag/v2.8.0
+
+**Release Highlights**:
+- Format Preservation Framework (L245 prevention)
+- OOXML verification module (5 Python files, 1,471 lines)
+- Track Changes detection (insertions, deletions)
+- Round-trip validation support
+- 15 integration tests with real DOCX files
+- 68% coverage on docx_verifier.py
+- Dogfooding validated (3min 18sec)
+- Dual versioning standard introduced
+
+**Status**: ✅ RELEASED (2025-11-03)
 
 ---
 
@@ -230,10 +311,13 @@ output_path = "tests/fixtures/test_with_track_changes.docx"  # Same file = prese
 | Gate 4.1 | 2-3h | ~1.5h | ✅ Under estimate |
 | Gate 4.2 | 1-2h | 3min | ✅ Well under (scope appropriate) |
 | Gate 4.3 | 1-2h* | 5min | ✅ Minor fix accepted |
-| Gate 4.4 | 1-2h | ~1h | ✅ On estimate |
-| **Total** | **16-26h** | **~20h** | ✅ **Within range** |
+| Gate 4.4 | - | 15min | ✅ Versioning correction |
+| Gate 4.5 | 1-2h | ~1h | ✅ On estimate |
+| Gate 4.6 | - | 5min | ✅ GitHub release |
+| **Total** | **16-26h** | **~20.5h** | ✅ **Within range** |
 
 *Gate 4.3 was conditional (if needed); minor fix applied instead of full revision.
+*Gate 4.4 added for versioning correction (v3.0.0 → v2.8.0).
 
 ### Token Usage
 
@@ -243,10 +327,12 @@ output_path = "tests/fixtures/test_with_track_changes.docx"  # Same file = prese
 | Gate 4.1 | - | ~8k | 192k |
 | Gate 4.2 | - | ~8k | 184k |
 | Gate 4.3 | - | ~2k | 182k |
-| Gate 4.4 | - | ~10k | ~105k |
-| **Total** | **200k** | **~105k (52%)** | **~95k (48%)** |
+| Gate 4.4 | - | ~3k | 179k |
+| Gate 4.5 | - | ~10k | 169k |
+| Gate 4.6 | - | ~2k | 167k |
+| **Total** | **200k** | **~115k (57%)** | **~85k (43%)** |
 
-**Efficiency**: Used 52% of budget, well within comfortable margins.
+**Efficiency**: Used 57% of budget, well within comfortable margins.
 
 ### Code Metrics
 
@@ -385,25 +471,32 @@ output_path = "tests/fixtures/test_with_track_changes.docx"  # Same file = prese
 14. `tests/unit/tools/format_verification/test_verification_framework.py` (447 lines)
 15. `MIGRATION_v2_to_v3.md` (250 lines)
 
-**Modified Files** (4):
-1. `.aget/version.json` - v2.7.0 → v3.0.0, capabilities added
-2. `README.md` - v3.0.0 features, protocol count updated
-3. `CHANGELOG.md` - v3.0.0 entry added
-4. `tests/test_integration.py` - Accept v3.x versions
+**Modified Files** (5):
+1. `.aget/version.json` - Dual versioning (template_version: 2.8.0, aget_version: 2.7.0)
+2. `README.md` - v2.8.0 features, dual versioning explanation, protocol count updated
+3. `CHANGELOG.md` - v2.8.0 entry added
+4. `tests/test_integration.py` - Template versioning validation
+5. `MIGRATION_v2.7_to_v2.8.md` - Renamed and updated from v2_to_v3
 
-**Total**: 19 files changed, +3,656 insertions, -15 deletions
+**Total**: 20 files changed, +4,178 insertions, -16 deletions
 
-### Commit
+### Commits
 
-**SHA**: 52992a6
-**Message**: "release: v3.0.0 - Format Preservation Framework"
-**Branch**: main
+**Commit 1** (versioning correction):
+- **SHA**: 71f1c50
+- **Message**: "fix: Correct template versioning (v3.0.0 → v2.8.0, incremental from v2.7.0)"
+
+**Commit 2** (final release):
+- **SHA**: 3e0b8c7
+- **Message**: "release: v2.8.0 - Format Preservation Framework with dual versioning"
+- **Branch**: main
+- **Status**: Pushed to GitHub
 
 ---
 
 ## Impact Assessment
 
-### Immediate Impact (v3.0.0)
+### Immediate Impact (v2.8.0)
 
 **L245 Prevention**:
 - Template now prevents catastrophic format loss (100% Track Changes loss)
@@ -420,16 +513,16 @@ output_path = "tests/fixtures/test_with_track_changes.docx"  # Same file = prese
 - Integration example copy-paste ready (post-fix)
 - Clear separation between basic and advanced usage
 
-### Post-Release Validation (v3.0.0 + 3 months)
+### Post-Release Validation (v2.8.0 + 3 months)
 
 **Questions to Answer**:
-1. Did anyone create agent from template v3.0.0?
+1. Did anyone create agent from template v2.8.0?
 2. If yes, which features did they use? (Simple API only vs Advanced)
 3. Did they succeed or abandon due to complexity?
 4. Feedback on documentation? (clear vs overwhelming)
 
 **Simplification Trigger**:
-- If 0/3 users adopt framework OR 3/3 users say "too complex" → v3.1.0 simplifies
+- If 0/3 users adopt framework OR 3/3 users say "too complex" → v2.9.0 simplifies
 - If 2/3 users successfully adopt simple API → complexity justified
 - If 2/3 users use advanced features → comprehensive framework validated
 
@@ -441,49 +534,60 @@ output_path = "tests/fixtures/test_with_track_changes.docx"  # Same file = prese
 
 ### Immediate (Post-Release)
 
-1. **GitHub Release** (not completed this session):
-   - Create GitHub release v3.0.0
-   - Attach migration guide, changelog
-   - Tag commit 52992a6
+1. ✅ **GitHub Release** (COMPLETED):
+   - Created GitHub release v2.8.0
+   - Release URL: https://github.com/aget-framework/template-document-processor-AGET/releases/tag/v2.8.0
+   - Tagged commit 3e0b8c7
 
 2. **Update Fleet State** (if applicable):
-   - Supervisor: Note v3.0.0 availability in portfolio tracking
-   - Agents: Notify of v3.0.0 release (optional adoption)
+   - Supervisor: Note v2.8.0 availability in portfolio tracking
+   - Agents: Notify of v2.8.0 release (optional adoption)
 
 3. **Monitor Adoption**:
-   - Track which agents adopt format preservation (v3.0.0)
+   - Track which agents adopt format preservation (v2.8.0)
    - Document friction points or issues reported
    - Collect feedback on documentation usability
 
 ### Medium-Term (3 Months)
 
-4. **Post-Release Validation** (v3.0.0 + 3 months):
+4. **Post-Release Validation** (v2.8.0 + 3 months):
    - Analyze adoption patterns (simple API vs advanced features)
    - Collect user feedback (clarity vs overwhelming)
-   - Decision: Simplify (v3.1.0) or keep (validated)
+   - Decision: Simplify (v2.9.0) or keep (validated)
 
 5. **Coverage Improvements** (if needed):
    - Comments verification (currently 0%, requires manual test file)
    - Checkpoint JSON persistence (currently untested, advanced feature)
    - Multi-stage pipeline (3+ stages, currently untested)
 
+6. **Framework Enhancement** (if L250 adopted):
+   - Apply dual versioning to all specialized templates
+   - Update contract tests framework-wide
+   - Document in AGENTS.md specification
+
 ---
 
 ## Conclusion
 
-**v3.0.0 Release Status**: ✅ **COMPLETE**
+**v2.8.0 Release Status**: ✅ **RELEASED**
 
-**Deliverables**: All gates complete (Pre-Gate, Gate 1-4), all artifacts created, commit pushed.
+**Deliverables**: All gates complete (Pre-Gate, Gates 1-4.6), all artifacts created, commits pushed, GitHub release published.
 
-**Quality**: 8/10 supervisor rating, 62/62 tests passing, dogfooding validated.
+**Quality**: 9/10 final supervisor rating, 62/62 tests passing, dogfooding validated.
 
 **Backward Compatibility**: Zero breaking changes, opt-in adoption.
 
 **Documentation**: Simple-first approach validated (3min 18sec pilot agent creation).
 
-**Next**: GitHub release, post-release validation, adoption tracking.
+**Versioning**: Dual versioning pattern introduced (template_version: 2.8.0, aget_version: 2.7.0).
+
+**Framework Contribution**: L250 learning document created for framework-wide adoption of dual versioning pattern.
+
+**Release URL**: https://github.com/aget-framework/template-document-processor-AGET/releases/tag/v2.8.0
+
+**Next**: Post-release validation (v2.8.0 + 3 months), adoption tracking, potential framework enhancement.
 
 ---
 
-**Session End**: 2025-11-03 01:31:02
-**Status**: v3.0.0 ready for production release
+**Session End**: 2025-11-03 (continued session)
+**Final Status**: ✅ v2.8.0 RELEASED TO PRODUCTION
