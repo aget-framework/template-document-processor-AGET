@@ -151,7 +151,14 @@ def test_contract_version_compliance():
     assert len(version_data['agent_name']) > 0
 
     assert isinstance(version_data['aget_version'], str)
-    assert version_data['aget_version'].startswith('2.')  # Version 2.x expected
+    assert version_data['aget_version'].startswith(('2.', '3.'))  # Version 2.x or 3.x expected
+
+    # Template-specific validation
+    if version_data.get('template') is True:
+        assert 'template_version' in version_data, "Template must have template_version field"
+        assert isinstance(version_data['template_version'], str)
+        assert 'template_base' in version_data, "Template must have template_base field"
+        assert isinstance(version_data['template_base'], str)
 
     assert version_data['instance_type'] in ['AGET', 'aget']
 

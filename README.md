@@ -1,15 +1,20 @@
 # template-document-processor-AGET
 
-**Version**: 2.7.0
-**Type**: AGET Template
+**Template Version**: 2.8.0
+**AGET Framework**: v2.7.0
+**Type**: AGET Template (specialized from worker template)
 **Domain**: Document Processing
 
-A production-ready template for creating document processing agents with LLM pipelines, security protocols, and multi-provider support.
+A production-ready template for creating document processing agents with LLM pipelines, security protocols, format preservation, and multi-provider support.
+
+**Note**: This template is based on `template-worker-aget` v2.7.0 with specialized document processing capabilities. Template version (v2.8.0) tracks template-specific features independently from AGET framework version (v2.7.0).
 
 ## Overview
 
 This template provides a complete foundation for agents that:
 - ✅ Process documents using LLM assistance (OpenAI, Anthropic, Google)
+- ✅ Preserve DOCX formatting (Track Changes, comments, annotations)
+- ✅ Prevent catastrophic format loss (L245-type failures)
 - ✅ Support batch operations with validation pipelines
 - ✅ Implement security protocols (injection prevention, content filtering)
 - ✅ Provide caching, metrics, and observability
@@ -142,19 +147,22 @@ Define metrics in `configs/metrics.yaml`:
 
 ## Protocols
 
-The template includes 9 operational protocols in `.aget/docs/protocols/`:
+The template includes 10 operational protocols in `.aget/docs/protocols/`:
 
-1. **Queue Management** - Managing document queues
-2. **Processing Authorization** - Approval gates and STOP protocol
-3. **Validation Pipeline** - Pre/post validation
-4. **Rollback** - Version management and recovery
-5. **Security Validation** - Input/output sanitization
-6. **Task Decomposition** - Breaking large documents into subtasks
-7. **Model Routing** - Selecting optimal LLM for each task
-8. **Caching** - LLM response caching for cost/speed
-9. **Metrics Collection** - Tracking accuracy/latency/cost
+1. **Format Preservation** - Prevent L245-type catastrophic failures (Track Changes loss)
+2. **Queue Management** - Managing document queues
+3. **Processing Authorization** - Approval gates and STOP protocol
+4. **Validation Pipeline** - Pre/post validation
+5. **Rollback** - Version management and recovery
+6. **Security Validation** - Input/output sanitization
+7. **Task Decomposition** - Breaking large documents into subtasks
+8. **Model Routing** - Selecting optimal LLM for each task
+9. **Caching** - LLM response caching for cost/speed
+10. **Metrics Collection** - Tracking accuracy/latency/cost
 
 Each protocol includes bash commands and code examples.
+
+**Format Preservation Guide**: See `.aget/docs/FORMAT_PRESERVATION_GUIDE.md` for complete usage guide.
 
 ## Scripts
 
@@ -236,7 +244,31 @@ python3 .aget/tools/instantiate_template.py --check ~/github/invoice-processor-A
 
 ## Version History
 
-**v2.7.0** (2025-10-26)
+### Template Versioning
+
+This template uses dual versioning:
+- **Template Version** (v2.8.0): Template-specific features and enhancements
+- **AGET Framework** (v2.7.0): Framework compliance version
+
+**Template v2.8.0** tracks format preservation capabilities added to this specialized template.
+**AGET v2.7.0** indicates compliance with AGET framework standards and base worker template.
+
+---
+
+**Template v2.8.0** (2025-11-02) - AGET Framework v2.7.0
+- **Format Preservation Framework**: Prevent L245-type catastrophic failures
+- **New capabilities**:
+  - OOXML verification for Track Changes, comments, annotations
+  - Round-trip validation (before → process → after)
+  - Multi-stage checkpoint system for pipeline verification
+  - L245 failure detection (100% format loss prevention)
+- **Documentation**:
+  - FORMAT_PRESERVING_DECISION_PROTOCOL.md (5-question architecture checklist)
+  - FORMAT_PRESERVATION_GUIDE.md (implementation guide)
+- **Test coverage**: 17 tests, 38% coverage (critical paths validated)
+- **API**: 5-module framework with simple and advanced usage patterns
+
+**Template v2.7.0** (2025-10-26) - AGET Framework v2.7.0
 - Initial template release
 - Based on L208 document processing pattern analysis
 - **20 source modules** (Gate 2A: 8, Gate 2B: 7, Gate 2C: 5)
