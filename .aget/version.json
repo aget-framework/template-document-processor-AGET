@@ -1,5 +1,5 @@
 {
-  "aget_version": "3.2.1",
+  "aget_version": "3.3.0",
   "template_version": "2.8.0",
   "template_base": "worker",
   "agent_name": "template-document-processor-AGET",
@@ -32,8 +32,9 @@
   ],
   "based_on_learning": "L208_document_processing_template_pattern.md",
   "source_pattern_count": 2,
-  "updated": "2026-01-07",
+  "updated": "2026-01-17",
   "migration_history": [
-    "v2.7.0 -> v3.2.1: 2026-01-07 (Gate 2 fleet consolidation - WH-2026Q1)"
+    "v2.7.0 -> v3.2.1: 2026-01-07 (Gate 2 fleet consolidation - WH-2026Q1)",
+    "v3.2.1 -> v3.3.0: 2026-01-17 (Data Safety Remediation - Fleet alignment)"
   ]
 }
