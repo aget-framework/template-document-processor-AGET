@@ -1,5 +1,9 @@
 # template-document-processor-AGET
 
+> **Status**: 🟡 DORMANT (stable template - v2.8.0 released 2025-11-03)
+>
+> Production-ready template. Activated when new document processing agents are needed.
+
 **Template Version**: 2.8.0
 **AGET Framework**: v2.7.0
 **Type**: AGET Template (specialized from worker template)
