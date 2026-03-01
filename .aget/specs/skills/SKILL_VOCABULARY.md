@@ -62,7 +62,7 @@ This vocabulary defines terms specific to AGET Skills and their specifications.
 | Category | Description | Examples |
 |----------|-------------|----------|
 | Session | Wake-up, wind-down, save-state lifecycle | aget-wake-up, aget-wind-down |
-| Monitoring | Healthcheck, validation, status reporting | aget-healthcheck-evolution |
+| Monitoring | Healthcheck, validation, status reporting | aget-check-evolution |
 | Learning | Lesson recording, observation capture | aget-record-lesson |
 | Governance | Proposal, review, approval workflows | aget-propose-skill |
 | Planning | Project creation, project review | aget-review-project |
@@ -82,7 +82,7 @@ This vocabulary defines terms specific to AGET Skills and their specifications.
 - Read-only (never modifies files)
 - Threshold calibrated per agent archetype
 
-**Instances**: aget-healthcheck-evolution, aget-healthcheck-sessions, aget-healthcheck-kb
+**Instances**: aget-check-evolution, aget-check-sessions, aget-check-kb
 
 **Related**: Health_Status, Threshold
 
