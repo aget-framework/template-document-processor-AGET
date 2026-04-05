@@ -288,6 +288,7 @@ This template uses dual versioning:
 ## Support
 
 For template issues or questions:
+- Issue tracker: https://github.com/aget-framework/aget/issues
 - Template repository: https://github.com/aget-framework/template-document-processor-AGET
 - AGET framework: https://github.com/aget-framework
 
