@@ -5,6 +5,23 @@ All notable changes to template-document-processor-AGET will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.16.0] - 2026-05-02
+
+**Theme**: Aligned with framework v3.16.0 (Framework-Discipline Closure + Wave-1A Spec Contracts + /aget-go Production)
+
+### Changed
+
+- Version bump: 3.15.0 → 3.16.0 (framework alignment)
+- `AGENTS.md` `@aget-version` updated to 3.16.0
+- No `.claude/skills/` baseline present (template lacks universal-skill deployment per L671 dormant classification; addressed at v3.17 grooming via #1121 lifecycle decision).
+
+### Compatibility
+
+- **No breaking changes** in v3.16. Existing instances upgrade by version-bump only.
+- Optional adoption: `**Plan_Status**:` / `**Gate_Status:**` schema in new PROJECT_PLAN files (CAP-PP-003 disambiguation; backward-compatible).
+
+---
+
 ## [3.15.0] - 2026-04-25
 
 **Theme**: Aligned with framework v3.15.0 (Two-Level Model Coherence + Security Hardening)
