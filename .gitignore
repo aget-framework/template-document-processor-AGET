@@ -74,3 +74,5 @@ data/local/
 *.bak
 *.backup
 *~
+*.pyc
+sessions/
