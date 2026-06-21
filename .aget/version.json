@@ -1,5 +1,5 @@
 {
-  "aget_version": "3.23.0",
+  "aget_version": "3.23.1",
   "template_version": "2.8.0",
   "template_base": "worker",
   "agent_name": "template-document-processor-AGET",
@@ -51,6 +51,7 @@
     "v3.20.2 -> v3.20.3: 2026-05-31 (C-P3 #1553 fix)",
     "v3.20.3 -> v3.21.0: 2026-06-06 (version sync)",
     "v3.21.0 -> v3.22.0: 2026-06-13 (version sync)",
-    "v3.22.0 -> v3.23.0: 2026-06-20"
+    "v3.22.0 -> v3.23.0: 2026-06-20",
+    "v3.23.0 -> v3.23.1: 2026-06-20"
   ]
 }
