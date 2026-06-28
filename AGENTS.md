@@ -1,6 +1,6 @@
 # Agent Configuration
 
-@aget-version: 3.23.1
+@aget-version: 3.24.0
 
 ## Agent Compatibility
 This configuration follows the AGENTS.md open-source standard for universal agent configuration.
