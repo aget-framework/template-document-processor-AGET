@@ -1,5 +1,5 @@
 {
-  "aget_version": "3.24.0",
+  "aget_version": "3.25.0",
   "template_version": "2.8.0",
   "template_base": "worker",
   "agent_name": "template-document-processor-AGET",
@@ -36,7 +36,7 @@
   ],
   "based_on_learning": "L208_document_processing_template_pattern.md",
   "source_pattern_count": 2,
-  "updated": "2026-06-28",
+  "updated": "2026-07-04",
   "migration_history": [
     "v2.7.0 -> v3.2.1: 2026-01-07 (Gate 2 fleet consolidation - WH-2026Q1)",
     "v3.2.1 -> v3.3.0: 2026-01-17 (Data Safety Remediation - Fleet alignment)",
@@ -53,6 +53,7 @@
     "v3.21.0 -> v3.22.0: 2026-06-13 (version sync)",
     "v3.22.0 -> v3.23.0: 2026-06-20",
     "v3.23.0 -> v3.23.1: 2026-06-20",
-    "v3.23.1 -> v3.24.0: 2026-06-28"
+    "v3.23.1 -> v3.24.0: 2026-06-28",
+    "v3.24.0 -> v3.25.0: 2026-07-04 (payload-verified reliance-only conformance bump; public window 2026-07-11)"
   ]
 }
