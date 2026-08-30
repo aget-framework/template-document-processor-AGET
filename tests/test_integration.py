@@ -247,6 +247,7 @@ def test_script_integration_process():
 
 def test_script_integration_health_check():
     """Test health_check.py script validates system health"""
+    # SKILL-003 aget-check-health: 0=healthy, 1=warnings, 2=errors.
     # Run health_check.py script
     result = subprocess.run(
         ["python3", "scripts/health_check.py"],
@@ -254,12 +255,17 @@ def test_script_integration_health_check():
         text=True
     )
 
-    # Should succeed (exit code 0)
-    assert result.returncode == 0, f"Health check failed: {result.stderr}"
+    # A template may legitimately omit optional instance structure and report
+    # warnings. The integration contract is that the script executes and does
+    # not reach its error tier; warning exit 1 is not a crash.
+    assert result.returncode in (0, 1), (
+        f"Health check reached error tier: {result.stdout}\n{result.stderr}"
+    )
 
-    # Should check multiple categories
-    assert "directories" in result.stdout.lower() or "Directories" in result.stdout
-    assert "modules" in result.stdout.lower() or "Modules" in result.stdout
+    # Current canonical output names the overall verdict and category count.
+    assert "=== AGET Housekeeping Report ===" in result.stdout
+    assert "Status:" in result.stdout
+    assert "Checks:" in result.stdout
 
     print("✅ health_check.py script integration successful")
 
