@@ -1,7 +1,7 @@
 # Agent Configuration
 
-@aget-version: 3.33.0
-@aget-canonical-specs: https://github.com/aget-framework/aget/tree/v3.33.0/specs — reliance-only conformance (D-1, 2026-07-04): this template runs the version's features; specs are canonical-referenced, not copied locally
+@aget-version: 3.33.1
+@aget-canonical-specs: https://github.com/aget-framework/aget/tree/v3.33.1/specs — reliance-only conformance (D-1, 2026-07-04): this template runs the version's features; specs are canonical-referenced, not copied locally
 
 ## Agent Compatibility
 This configuration follows the AGENTS.md open-source standard for universal agent configuration.
@@ -25,6 +25,28 @@ This template provides a production-ready foundation for creating document proce
 - Provide caching, metrics, and observability
 - Enable task decomposition for large documents
 - Support rollback and version management
+
+## Skill Routing
+
+| Task | Skill route |
+|---|---|
+| Read, transform, or quality-check Word documents | Use the document-processing workflow and preserve a source-to-output validation receipt |
+| Read, create, or verify PDF artifacts | Use the PDF workflow and render the final artifact before delivery |
+| Process a large document collection | Use the batch-processing workflow with bounded batches, validation, and rollback checkpoints |
+
+If a named workflow is unavailable, stop and report the missing capability rather than silently substituting
+an unverified transformation path.
+
+## Write Scope
+
+**Allowed**: task-authorized inputs, generated outputs, validation evidence, and repository-owned
+configuration under this document-processing agent's declared workspace.
+
+**Prohibited**: source-document overwrite without explicit authorization; writes outside the declared
+workspace; credential stores; and publication to external systems without a separate user-approved action.
+
+Preserve originals by default. Stage only exact authorized paths and keep rollback evidence for every
+content-changing batch.
 
 ## Based on Learning
 
