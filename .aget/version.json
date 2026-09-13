@@ -1,5 +1,5 @@
 {
-  "aget_version": "3.33.1",
+  "aget_version": "3.34.0",
   "template_version": "2.8.0",
   "template_base": "worker",
   "agent_name": "template-document-processor-AGET",

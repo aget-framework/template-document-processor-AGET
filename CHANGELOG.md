@@ -5,6 +5,12 @@ All notable changes to template-document-processor-AGET will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.34.0] - 2026-09-13
+
+### Changed
+- Synchronized canonical payload scripts with the v3.34.0 candidate.
+- Repaired shipped-skill frontmatter so every SKILL.md carries a strictly-parseable description (C-34-01).
+
 ## [3.33.1] - 2026-08-30 - "Receiver-visible integrity"
 
 ### Fixed
