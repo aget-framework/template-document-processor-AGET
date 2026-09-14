@@ -255,10 +255,10 @@ python3 .aget/tools/instantiate_template.py --check ~/github/invoice-processor-A
 
 This template uses dual versioning:
 - **Template Version** (v2.8.0): Template-specific features and enhancements
-- **AGET Framework** (v3.33.1): Framework compliance version
+- **AGET Framework** (v3.34.0): Framework compliance version
 
 **Template v2.8.0** tracks format preservation capabilities added to this specialized template.
-**AGET v3.33.1** indicates compliance with AGET framework standards and the base worker template.
+**AGET v3.34.0** indicates compliance with AGET framework standards and the base worker template.
 
 ---
 
