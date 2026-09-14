@@ -8,13 +8,13 @@
 > Production-ready template. Activated when new document processing agents are needed.
 
 **Template Version**: 2.8.0
-**AGET Framework**: v3.33.1
+**AGET Framework**: v3.34.0
 **Type**: AGET Template (specialized from worker template)
 **Domain**: Document Processing
 
 A production-ready template for creating document processing agents with LLM pipelines, security protocols, format preservation, and multi-provider support.
 
-**Note**: This template was originally derived from `template-worker-aget` v2.7.0 with specialized document processing capabilities. Template version (v2.8.0) tracks template-specific features independently from the AGET framework version, which is currently v3.33.1.
+**Note**: This template was originally derived from `template-worker-aget` v2.7.0 with specialized document processing capabilities. Template version (v2.8.0) tracks template-specific features independently from the AGET framework version, which is currently v3.34.0.
 
 ## Overview
 
