@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scripts/study_topic.py` no longer reports a novel topic when the score floor suppressed its hits: the zero-result branch now says that suppressed hits exist and that the result is not a novel-topic verdict.
 
 ### Changed
+- The 2026-04-12 migration record under `.aget/evolution/` no longer carries the maintainer's local home path: the backup path it records now starts with `~`.
 - Version surfaces aligned to framework v3.36.0. The fleet migration kit that v3.36.0 adds lives in the core repository (`scripts/migration_kit/`) and is not a template payload: this template ships no kit files.
 - Not in this release: the repaired `scripts/close_authorization_guard.py`. This template still ships the guard at its 3.34.0 version; the repair is deferred to the next release. See `handoffs/CORRECTIONS_v3.35.0.md` rows 4 and 5 in `aget-framework/aget` for what to do until then.
 
