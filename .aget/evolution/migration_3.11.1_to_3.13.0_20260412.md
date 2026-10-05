@@ -12,7 +12,7 @@
 ## Report
 
 - Prerequisites check passed
-- Backup created at: /Users/gabormelli/github/aget-framework/template-document-processor-AGET/.aget/backups/2026-04-12_v3.11.1
+- Backup created at: <framework-root>/template-document-processor-AGET/.aget/backups/2026-04-12_v3.11.1
 - Applying version changes...
 - Updated version.json: 3.11.1 -> 3.13.0
 - Updated AGENTS.md @aget-version to 3.13.0
