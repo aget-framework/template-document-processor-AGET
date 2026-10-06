@@ -5,13 +5,12 @@ All notable changes to template-document-processor-AGET will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.36.0] - 2026-10-03 - "Fleet migration kit for supervisors"
-
-### Fixed
-- `scripts/study_topic.py` no longer reports a novel topic when the score floor suppressed its hits: the zero-result branch now says that suppressed hits exist and that the result is not a novel-topic verdict.
+## [3.36.0] - 2026-10-10 - "Fleet migration kit for supervisors"
 
 ### Changed
-- The 2026-04-12 migration record under `.aget/evolution/` no longer carries the maintainer's local home path: the backup path it records now starts with `~`.
+- Round 2 reconciles the 3.36.0 updated/history dates to 2026-10-10 and replaces private producing-Aget authorship/provenance and internal fleet-upgrade references with public attribution and generic references. Runtime payload behaviour is unchanged.
+- From v3.35.1, this template already carries the `scripts/study_topic.py` fix; it is unchanged in v3.36.0.
+- The 2026-04-12 migration record under `.aget/evolution/` no longer carries the maintainer's local home path: the backup path it records now starts with `<framework-root>`.
 - Version surfaces aligned to framework v3.36.0. The fleet migration kit that v3.36.0 adds lives in the core repository (`scripts/migration_kit/`) and is not a template payload: this template ships no kit files.
 - Not in this release: the repaired `scripts/close_authorization_guard.py`. This template still ships the guard at its 3.34.0 version; the repair is deferred to the next release. See `handoffs/CORRECTIONS_v3.35.0.md` rows 4 and 5 in `aget-framework/aget` for what to do until then.
 
@@ -173,7 +172,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Framework v3.18.0 Highlights
 
 - `AGET_MEMORY_SURFACE_SPEC v0.2.0` canonical promotion (T1.16 + T2.37) — harness-vs-KB taxonomy formalized
-- Verb Registry Currency (T1.9 = PP-021) — 37 Active + 4 Reserved verbs + 11 §Hierarchy Decisions pairs
+- Verb Registry Currency (T1.9 = prior authoring project) — 37 Active + 4 Reserved verbs + 11 §Hierarchy Decisions pairs
 - `/aget-create-initiative` Strict promotion (T2.46) — D71 verb-pair gap closed
 - Homepage Fork C Hybrid (T1.12) — L941-L944 cluster closed structurally
 - L908 family memory-layer closure (L960 + L963 + L964 graduated)

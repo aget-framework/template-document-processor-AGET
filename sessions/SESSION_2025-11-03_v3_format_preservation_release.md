@@ -1,7 +1,7 @@
 # Session: v2.8.0 Format Preservation Framework Release
 
 **Date**: 2025-11-03
-**Agent**: private-supervisor-AGET v2.7.0 (Coordinator)
+**Agent**: aget-framework v2.7.0 (Coordinator)
 **Objective**: Release template-document-processor-AGET v2.8.0 with format preservation capabilities
 
 ---

@@ -376,7 +376,7 @@ Or install as package (if distributed separately).
 
 **Prevention**: This verification framework catches L245-type failures before they invalidate user work.
 
-**Learn more**: See `private-docx-AGET/.aget/evolution/L245_ooxml_round_trip_verification.md` for full analysis and anti-patterns.
+**Background**: Internal OOXML round-trip verification analysis (not shipped) informed these anti-patterns.
 
 ---
 
